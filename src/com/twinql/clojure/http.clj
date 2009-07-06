@@ -1,10 +1,12 @@
 (ns com.twinql.clojure.http
   (:refer-clojure :exclude [get])
+  (:use clojure.set)
   (:require [clojure.contrib.duck-streams :as duck])
   (:import 
     (java.lang Exception)
     (java.net URI)
     (org.apache.http
+      HttpHost        ; For proxy.
       HttpResponse
       HttpEntity
       StatusLine)
@@ -183,15 +185,50 @@ If only a query parameter map is provided, it is included in the body.")
 (def-http-verb head HttpHead)
 (def-http-verb delete HttpDelete)
 
-(comment
-  ;; TODO: make it easier to use parameters.
+(defn #^HttpHost http-host [& args]
+  (let [{:keys [host port scheme]} (apply hash-map args)]
+    (HttpHost. host (ensure-int port) scheme)))
+
 (defn map->params
   "Put more pleasant names on the Apache constants."
   [m]
-  :default-proxy org.apache.http.conn.params.ConnRoutePNames/DEFAULT_PROXY
-  :forced-route org.apache.http.conn.params.ConnRoutePNames/FORCED_ROUTE
-  :local-address org.apache.http.conn.params.ConnRoutePNames/LOCAL_ADDRESS
-  :max-status-line-garbage org.apache.http.conn.params.ConnConnectionPNames/MAX_STATUS_LINE_GARBAGE ; Expects Integer.
-  :max-connections-per-route org.apache.http.conn.params.ConnManagerPNames/MAX_CONNECTIONS_PER_ROUTE ; Expects Integer.
-  :max-total-connections org.apache.http.conn.params.ConnManagerPNames/MAX_TOTAL_CONNECTIONS ; Expects a ConnPerRoute.
-  :timeout org.apache.http.conn.params.ConnManagerPNames/TIMEOUT))   ; Expects Long.
+  ;; In Clojure a1397390d8b3b63f2039359520629d87b152d717, rename-keys is buggy.
+  (rename-keys
+    m
+    {:default-headers                       org.apache.http.client.params.ClientPNames/DEFAULT_HEADERS                       ; Collection of Headers.
+     :default-host                          org.apache.http.client.params.ClientPNames/DEFAULT_HOST                          ; HttpHost.
+     :default-proxy                         org.apache.http.conn.params.ConnRoutePNames/DEFAULT_PROXY                        ; HttpHost.
+     :virtual-host                          org.apache.http.client.params.ClientPNames/VIRTUAL_HOST                          ; HttpHost.
+     :forced-route                          org.apache.http.conn.params.ConnRoutePNames/FORCED_ROUTE                         ; HttpRoute.
+     :max-total-connections                 org.apache.http.conn.params.ConnManagerPNames/MAX_TOTAL_CONNECTIONS              ; ConnPerRoute.
+     :local-address                         org.apache.http.conn.params.ConnRoutePNames/LOCAL_ADDRESS                        ; InetAddress.
+     :protocol-version                      org.apache.http.params.CoreProtocolPNames/PROTOCOL_VERSION                       ; ProtocolVersion.
+     :max-status-line-garbage               org.apache.http.conn.params.ConnConnectionPNames/MAX_STATUS_LINE_GARBAGE         ; Integer.
+     :max-connections-per-route             org.apache.http.conn.params.ConnManagerPNames/MAX_CONNECTIONS_PER_ROUTE          ; Integer.
+     :connection-timeout                    org.apache.http.params.CoreConnectionPNames/CONNECTION_TIMEOUT                   ; Integer.
+     :max-header-count                      org.apache.http.params.CoreConnectionPNames/MAX_HEADER_COUNT                     ; Integer.
+     :max-line-length                       org.apache.http.params.CoreConnectionPNames/MAX_LINE_LENGTH                      ; Integer.
+     :so-linger                             org.apache.http.params.CoreConnectionPNames/SO_LINGER                            ; Integer.
+     :so-timeout                            org.apache.http.params.CoreConnectionPNames/SO_TIMEOUT                           ; Integer.
+     :socket-buffer-size                    org.apache.http.params.CoreConnectionPNames/SOCKET_BUFFER_SIZE                   ; Integer.
+     :wait-for-continue                     org.apache.http.params.CoreProtocolPNames/WAIT_FOR_CONTINUE                      ; Integer.
+     :max-redirects                         org.apache.http.client.params.ClientPNames/MAX_REDIRECTS                         ; Integer.
+     :timeout                               org.apache.http.conn.params.ConnManagerPNames/TIMEOUT                            ; Long.
+     :stale-connection-check                org.apache.http.params.CoreConnectionPNames/STALE_CONNECTION_CHECK               ; Boolean.
+     :tcp-nodelay                           org.apache.http.params.CoreConnectionPNames/TCP_NODELAY                          ; Boolean.
+     :strict-transfer-encoding              org.apache.http.params.CoreProtocolPNames/STRICT_TRANSFER_ENCODING               ; Boolean.
+     :use-expect-continue                   org.apache.http.params.CoreProtocolPNames/USE_EXPECT_CONTINUE                    ; Boolean.
+     :handle-authentication                 org.apache.http.client.params.ClientPNames/HANDLE_AUTHENTICATION                 ; Boolean.
+     :handle-redirects                      org.apache.http.client.params.ClientPNames/HANDLE_REDIRECTS                      ; Boolean.
+     :reject-relative-redirect              org.apache.http.client.params.ClientPNames/REJECT_RELATIVE_REDIRECT              ; Boolean.
+     :allow-circular-redirects              org.apache.http.client.params.ClientPNames/ALLOW_CIRCULAR_REDIRECTS              ; Boolean.
+     :single-cookie-header                  org.apache.http.cookie.params.CookieSpecPNames/SINGLE_COOKIE_HEADER              ; Boolean.
+     :connection-manager-factory-class-name org.apache.http.client.params.ClientPNames/CONNECTION_MANAGER_FACTORY_CLASS_NAME ; String.
+     :http-content-charset                  org.apache.http.params.CoreProtocolPNames/HTTP_CONTENT_CHARSET                   ; String.
+     :http-element-charset                  org.apache.http.params.CoreProtocolPNames/HTTP_ELEMENT_CHARSET                   ; String.
+     :origin-server                         org.apache.http.params.CoreProtocolPNames/ORIGIN_SERVER                          ; String.
+     :user-agent                            org.apache.http.params.CoreProtocolPNames/USER_AGENT                             ; String.
+     :cookie-policy                         org.apache.http.client.params.ClientPNames/COOKIE_POLICY                         ; String.
+     :credential-charset                    org.apache.http.auth.params.AuthPNames/CREDENTIAL_CHARSET                        ; String.
+     :date-patterns                         org.apache.http.cookie.params.CookieSpecPNames/DATE_PATTERNS                     ; String.
+    }))
