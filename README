@@ -8,7 +8,7 @@ this:
 = Functions
 
 The exported interface consists of the functions get, post, put, head, and
-delete.
+delete, and the utility function http-host (to return a value suitable for the host parameters, such as :default-proxy / DEFAULT_PROXY).
 
 All functions take a "uri part" as input -- which can be a URI, a string parsed
 as a URI, or a map like
@@ -54,8 +54,16 @@ appropriate format.
 
 
 = Apache connection parameters
-You can pass a parameter map to the HTTP functions.
+You can pass a parameter map to the HTTP functions. This is used to set various
+options on the HTTP client.
 
-The keys are long-winded Java constants, but the capability is very useful (e.g., for proxying). See 
+The keys are long-winded Java constants, but the capability is very useful
+(e.g., for proxying). See 
 
 <http://hc.apache.org/httpcomponents-client/httpclient/apidocs/org/apache/http/client/params/AllClientPNames.html>
+
+To avoid verbosity, a function map->params is provided. This will rename the keys in your input to the appropriate constants.
+
+For example, to issue a HEAD request via a proxy:
+
+(http/head "http://github.com/" :parameters {:default-proxy (http-host :host "localhost" :port 8080)})
