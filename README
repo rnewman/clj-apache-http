@@ -1,3 +1,9 @@
+= Building
+
+Simply use ant, optionally passing -Dclojure.jar="..." and -Dclojure.contrib.jar="...".
+
+Put clj-apache-http.jar on your classpath.
+
 = Loading
 
 This library defines a function named get, so it's best to require it like
