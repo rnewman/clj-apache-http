@@ -111,7 +111,10 @@
                      :response http-response
                      :headers (iterator-seq (.headerIterator http-response))}]
 
+       ;; I don't know if it's actually a good thing to do this.
+       ;(.. http-client getConnectionManager closeExpiredConnections)
        (.. http-client getConnectionManager shutdown)
+       
        response))))
 
 (defn- adding-headers! [#^AbstractHttpMessage verb headers]
