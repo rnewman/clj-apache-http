@@ -9,11 +9,15 @@
       HttpHost        ; For proxy.
       HttpResponse
       HttpEntity
+      Header
       StatusLine)
     (org.apache.http.client.entity UrlEncodedFormEntity)
     (org.apache.http.client.methods
       HttpGet HttpPost HttpPut HttpDelete HttpHead)
-    (org.apache.http.client HttpClient ResponseHandler)
+    (org.apache.http.client
+      CookieStore
+      HttpClient
+      ResponseHandler)
     (org.apache.http.client.utils URIUtils URLEncodedUtils)
     (org.apache.http.message
       AbstractHttpMessage
@@ -78,26 +82,37 @@
   (duck/slurp* (.getContent entity)))
 
 (defn- handle-http
-  "Returns [code reason (entity-as HttpEntity as)]."
-  [parameters http-verb as]
-  (let [#^DefaultHttpClient http-client (new DefaultHttpClient)
-        params (.getParams http-client)]
-    
-    ;; Used for, e.g., proxy addition.
-    (when parameters
-      (doseq [[pname pval] parameters]
-        (.setParameter params pname pval)))
-    
-    (let [#^HttpResponse http-response (. http-client execute http-verb)
-          #^StatusLine   status-line   (.getStatusLine http-response)
-          #^HttpEntity   entity        (.getEntity http-response)
-        
-          response [(.getStatusCode status-line)
-                    (.getReasonPhrase status-line)
-                    (entity-as entity as)]]
-      
-      (.. http-client getConnectionManager shutdown)
-      response)))
+  "Returns a map of code, reason, content (entity-as HttpEntity as),
+  headers, response, client."
+  ([parameters http-verb as]
+   (handle-http parameters http-verb as nil))
+
+  ([parameters http-verb as #^CookieStore cookie-store]
+   (let [#^DefaultHttpClient http-client (new DefaultHttpClient)
+         params (.getParams http-client)]
+
+     (when cookie-store
+       (.setCookieStore http-client cookie-store))
+
+     ;; Used for, e.g., proxy addition.
+     (when parameters
+       (doseq [[pname pval] parameters]
+         (.setParameter params pname pval)))
+
+     (let [#^HttpResponse http-response (. http-client execute http-verb)
+           #^StatusLine   status-line   (.getStatusLine http-response)
+           #^HttpEntity   entity        (.getEntity http-response)
+
+           response {:code (.getStatusCode status-line)
+                     :reason (.getReasonPhrase status-line)
+                     :content (entity-as entity as)
+                     :entity entity
+                     :client http-client
+                     :response http-response
+                     :headers (iterator-seq (.headerIterator http-response))}]
+
+       (.. http-client getConnectionManager shutdown)
+       response))))
 
 (defn- adding-headers! [#^AbstractHttpMessage verb headers]
   (when headers
@@ -142,14 +157,15 @@
   `(defn ~verb
      ~(str "Submit an HTTP " verb " request. The query string is appended to the URI.")
      [uri-parts# & rest#]
-     (let [{:keys [~'query ~'headers ~'parameters ~'as]} (apply hash-map rest#)]
+     (let [{:keys [~'query ~'headers ~'parameters ~'as ~'cookie-store]} (apply hash-map rest#)]
        (handle-http
          ~'parameters
          (adding-headers!
            (new ~class
                 (resolve-uri uri-parts# ~'query))
            ~'headers)
-         ~'as))))
+         ~'as
+         ~'cookie-store))))
  
 ;; For requests with bodies.
 (defmacro def-http-body-verb [verb class]
@@ -165,7 +181,9 @@ Optional keyword arguments:
 If both query and body are provided, the query string is appended to the URI.
 If only a query parameter map is provided, it is included in the body.")
     [uri-parts# & rest#]
-    (let [{:keys [~'query ~'headers ~'body ~'parameters ~'as]} (apply hash-map rest#)]
+    (let [{:keys [~'query ~'headers ~'body ~'parameters ~'as
+                  ~'cookie-store]}
+          (apply hash-map rest#)]
       (let [http-verb# (new ~class (resolve-uri uri-parts# (when ~'body ~'query)))]
         (if ~'body
           (.setEntity http-verb# ~'body)
@@ -177,7 +195,8 @@ If only a query parameter map is provided, it is included in the body.")
           ~'parameters
           (adding-headers!
             http-verb# ~'headers)
-          ~'as)))))
+          ~'as
+          ~'cookie-store)))))
   
 (def-http-body-verb post HttpPost)
 (def-http-body-verb put HttpPut)
