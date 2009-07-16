@@ -1,8 +1,27 @@
+# What is it? #
+
+`clj-apache-http` is a Clojure wrapper library for the Apache HTTP Client
+(version 4.0).
+
+<http://hc.apache.org/>
+
+It defines functions to perform HTTP requests, returning Clojure data
+structures for most outputs.
+
+Some knowledge of the underlying Apache `HttpClient` API is necessary for more
+advanced usage, such as extracting response headers and specifying cookie jars.
+
+For real-world code using this library, see the `clj-mql` project:
+
+<https://github.com/rnewman/clj-mql/tree/master>
+
+ 
 # Building #
 
 Simply use `ant`, optionally passing `-Dclojure.jar="..."` and `-Dclojure.contrib.jar="..."`.
 
 Put `clj-apache-http.jar` on your classpath.
+
 
 # Loading #
 
@@ -45,9 +64,11 @@ The result of calling these functions is a map as follows:
 
 Typically most of these can be ignored; `:code` and `:content` are the most important fields.
 
+
 # Examples #
 
-    (select-keys (http/get "http://clojure.org/api" :as :stream) [:code :reason :content])
+    (select-keys
+      (http/get "http://clojure.org/api" :as :stream) [:code :reason :content])
     => 
     {:content #<EofSensorInputStream org.apache.http.conn.EofSensorInputStream@4ba57633>, :reason "OK", :code 200}
 
