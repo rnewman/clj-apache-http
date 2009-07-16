@@ -67,15 +67,16 @@ Typically most of these can be ignored; `:code` and `:content` are the most impo
 
 # Examples #
 
-    (select-keys
-      (http/get "http://clojure.org/api" :as :stream) [:code :reason :content])
-    => 
-    {:content #<EofSensorInputStream org.apache.http.conn.EofSensorInputStream@4ba57633>, :reason "OK", :code 200}
-
-
     (:content (http/get (java.net.URI. "http://example.com") :as :string))
     =>
     "<HTML>\r\n<HEAD>\r\n  <TITLE>Example Web Page</TITLE>\r\n</HEAD> \r\n<body>…"
+
+    (select-keys
+      (http/get "http://clojure.org/api" :as :stream) [:code :reason :content])
+    => 
+    {:content #<EofSensorInputStream org.apache.http.conn.EofSensorInputStream@4ba57633>,
+     :reason "OK",
+     :code 200}
 
     (:reason (http/post "http://google.com/search" :query {:q "frobnosticate"}))
     =>
