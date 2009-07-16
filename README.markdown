@@ -118,4 +118,6 @@ To avoid verbosity, a function map->params is provided. This will rename the key
 
 For example, to issue a `HEAD` request via a proxy:
 
-    (http/head "http://github.com/" :parameters {:default-proxy (http-host :host "localhost" :port 8080)})
+    (http/head "http://github.com/"
+      :parameters (http/map->params
+                    {:default-proxy (http/http-host :host "localhost" :port 8080)}))
