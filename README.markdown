@@ -34,34 +34,53 @@ and the following keyword arguments:
 
 `post` and `put` additionally have a `:body` argument, which must be an `HttpEntity`.
 
+The result of calling these functions is a map as follows:
+
+* The status code: `:code`
+* The reason phrase: `:reason`
+* The content (subject to transformation): `:content`
+* The Apache `Entity` associated with the request/response pair: `:entity`
+* The Apache `HttpClient` used for the request (which allows access to the cookie jar): `:client`
+* The response headers, a sequence of Apache `Header` objects: `:headers`
+
+Typically most of these can be ignored; `:code` and `:content` are the most important fields.
+
 # Examples #
 
-    (http/get "http://clojure.org/api" :as :stream)
+    (select-keys (http/get "http://clojure.org/api" :as :stream) [:code :reason :content])
     => 
-    [200 "OK" #<EofSensorInputStream
-     org.apache.http.conn.EofSensorInputStream@76d3e1>]
+    {:content #<EofSensorInputStream org.apache.http.conn.EofSensorInputStream@4ba57633>, :reason "OK", :code 200}
 
 
-    (http/get (java.net.URI. "http://example.com") :as :string)
+    (:content (http/get (java.net.URI. "http://example.com") :as :string))
     =>
-    [200 "OK" "<HTML>\r\n<HEAD>\r\n  <TITLE>Example Web Page</TITLE>\r\n</HEAD> \r\n<body>  \r\n<p>You have reached this web page by typing &quot;example.com&quot;,\r\n&quot;example.net&quot;,\r\n  or &quot;example.org&quot; into your web browser.</p>\r\n<p>These domain names are reserved for use in documentation and are not available \r\n  for registration. See <a href=\"http://www.rfc-editor.org/rfc/rfc2606.txt\">RFC \r\n  2606</a>, Section 3.</p>\r\n</BODY>\r\n</HTML>\r\n\r\n"]
+    "<HTML>\r\n<HEAD>\r\n  <TITLE>Example Web Page</TITLE>\r\n</HEAD> \r\n<body>…"
 
-    (http/post "http://google.com/search" :query {:q "frobnosticate"})
+    (:reason (http/post "http://google.com/search" :query {:q "frobnosticate"}))
     =>
-    [405 "Method Not Allowed" #<BasicManagedEntity
-     org.apache.http.conn.BasicManagedEntity@2ae4fe>]
+    "Method Not Allowed"
 
-    (http/get "http://google.com/search" :query {:q "frobnosticate"})
+    (:code (http/get "http://google.com/search" :query {:q "frobnosticate"}))
     =>
-    [200 "OK" #<BasicManagedEntity org.apache.http.conn.BasicManagedEntity@9e7782>]
+    200
 
 
 
 # Keyword parameters #
+ 
 You can use `:query`, `:headers`, `:parameters`, and `:as`. These are all maps except
 for `:as`, which can be `:identity` (or `nil`), `:stream`, `:reader`, or `:string`. Define
 your own by defining a method on '`entity-as`' that turns an `HttpEntity` into the
 appropriate format.
+
+The `clj-mql` project defines an entity transformation method for JSON output, allowing 
+requests like
+
+    (:content (http/get "http://api.freebase.com/api/status" :as :json))
+    =>
+    {:transaction_id "cache;cache01.p01.sjc1:8101;2009-07-16T19:36:52Z;0006",
+     :status "200 OK", :relevance "OK", :graph "OK",
+     :code "/api/status/ok", :blob "OK"}
 
 
 # Apache connection parameters #
