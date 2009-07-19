@@ -110,23 +110,24 @@ details.
 
 # Keyword parameters #
  
-You can use `:query`, `:headers`, `:parameters`, and `:as`. These are all maps except
-for `:as`, which can be:
+You can use `:query`, `:headers`, `:parameters`, `:as`, and `:headers-as`.
+
+The first three are associative. `:as` can be:
 
 * `:identity` (or `nil`), returning the Apache HC entity object,
 * `:stream`, returning a stream
 * `:reader`, returning a `Reader`,
 * or `:string`,
 
-and `:headers-as`, which can be
+`:headers-as` can be
 
 * `:identity`, returning a `HeaderIterator`,
 * `:seq` (or `nil`), returning a sequence of [header, value] pairs,
 * `:element-seq`, returning a sequence of [header, `Element[]`] pairs,
 * `:map`, returning a map from header name to vector of values, or
-* `:map`, returning a map from header name to vector of `Element[]`.
+* `:element-map`, returning a map from header name to vector of `Element[]`.
 
-Define your own by defining a method on '`entity-as`' that turns an
+Define your own extensions by defining a method on '`entity-as`' that turns an
 `HttpEntity` into the appropriate format, or '`headers-as`' that turns a
 `HeaderIterator` into the format of your choice.
 
