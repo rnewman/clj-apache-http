@@ -60,9 +60,16 @@ The result of calling these functions is a map as follows:
 * The content (subject to transformation): `:content`
 * The Apache `Entity` associated with the request/response pair: `:entity`
 * The Apache `HttpClient` used for the request (which allows access to the cookie jar): `:client`
-* The response headers, a sequence of Apache `Header` objects: `:headers`
+* The response headers.
 
 Typically most of these can be ignored; `:code` and `:content` are the most important fields.
+
+Note that minimal processing is applied to these results (you don't pay for
+what you don't use).
+
+You can specify the format in which you wish to receive body content and
+headers using the `:as` and `:headers-as` keyword arguments. See below for
+details.
 
 
 # Examples #
@@ -86,14 +93,42 @@ Typically most of these can be ignored; `:code` and `:content` are the most impo
     =>
     200
 
+    (:headers (http/get "http://google.com/search" :query {:q "frobnosticate"} :headers-as :map))
+    =>
+    {"Transfer-Encoding" ["chunked"],
+     "Server" ["gws"],
+     "Set-Cookie"
+     ["SS=Q0=ZnJvYm5vc3RpY2F0ZQ; path=/search"
+      ["PREF=ID=9174bb4f419f1279:TM=1248028028:LM=1248028028:S=-Nxn6QHqif9SORnQ; expires=Tue, 19-Jul-2011 18:27:08 GMT; path=/; domain=.google.com"]
+      ["NID=24=E9wDEpOrfSFh2bt36RkK7ZIkjH78DeKeA1mulw1A5562byJ2ngJjDPClEHUceb-6ewf7ANSrA-6CrXjUfeHszmv3OM7giddIDfX-RBvtZGYIWI0FbUNbYvoKQXtQRu9S; expires=Mon, 18-Jan-2010 18:27:08 GMT; path=/; domain=.google.com; HttpOnly"]],
+     "Content-Type" ["text/html; charset=ISO-8859-1"],
+     "Expires" ["-1"],
+     "Date" ["Sun, 19 Jul 2009 18:27:08 GMT"],
+     "Cache-Control" ["private, max-age=0"]}
+
 
 
 # Keyword parameters #
  
 You can use `:query`, `:headers`, `:parameters`, and `:as`. These are all maps except
-for `:as`, which can be `:identity` (or `nil`), `:stream`, `:reader`, or `:string`. Define
-your own by defining a method on '`entity-as`' that turns an `HttpEntity` into the
-appropriate format.
+for `:as`, which can be:
+
+* `:identity` (or `nil`), returning the Apache HC entity object,
+* `:stream`, returning a stream
+* `:reader`, returning a `Reader`,
+* or `:string`,
+
+and `:headers-as`, which can be
+
+* `:identity`, returning a `HeaderIterator`,
+* `:seq` (or `nil`), returning a sequence of [header, value] pairs,
+* `:element-seq`, returning a sequence of [header, `Element[]`] pairs,
+* `:map`, returning a map from header name to vector of values, or
+* `:map`, returning a map from header name to vector of `Element[]`.
+
+Define your own by defining a method on '`entity-as`' that turns an
+`HttpEntity` into the appropriate format, or '`headers-as`' that turns a
+`HeaderIterator` into the format of your choice.
 
 The `clj-mql` project defines an entity transformation method for JSON output, allowing 
 requests like

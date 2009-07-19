@@ -10,6 +10,7 @@
       HttpResponse
       HttpEntity
       Header
+      HeaderIterator
       StatusLine)
     (org.apache.http.client.entity UrlEncodedFormEntity)
     (org.apache.http.client.methods
@@ -68,26 +69,89 @@
 (defmethod ensure-uri String [#^String x] (new URI x))
 (defmethod ensure-uri URI [#^URI x] x)
 
+(defn header-pair
+  "Return a vector of [name, value]."
+  [#^Header h]
+  [(.getName h)
+   (.getValue h)])
 
+(defn header-element-pair
+  "Return a vector of [name, array of HeaderElement]."
+  [#^Header h]
+  [(.getName h)
+   (.getElements h)])
+
+(def header-seq (partial map header-pair))
+(def header-element-seq (partial map header-element-pair))
+
+(defn- collect-map [f seq]
+  (apply
+    merge-with conj
+    (map f seq)))
+
+(defn header-map
+  "Return a map from header names to vectors of values."
+  [headers]
+  (collect-map (fn [h] {(.getName h) [(.getValue h)]}) headers))
+
+(defn header-element-map
+  "Return a map from header names to vectors of array of HeaderElement"
+  [headers]
+  (collect-map (fn [h] {(.getName h) [(.getElements h)]}) headers))
+
+;;; Header processors.
+(defmulti headers-as (fn [headers as] as))
+
+(defmethod headers-as :identity [#^HeaderIterator headers as]
+  headers)
+
+(defmethod headers-as :header-seq [#^HeaderIterator headers as]
+  (iterator-seq headers))
+  
+(defmethod headers-as :seq [#^HeaderIterator headers as]
+  (map header-pair (iterator-seq headers)))
+  
+(defmethod headers-as nil [#^HeaderIterator headers as]
+  (headers-as headers :seq))
+
+(defmethod headers-as :element-seq [#^HeaderIterator headers as]
+  (map header-element-pair (iterator-seq headers)))
+
+(defmethod headers-as :map [#^HeaderIterator headers as]
+  (header-map (iterator-seq headers)))
+
+(defmethod headers-as :element-map [#^HeaderIterator headers as]
+  (header-element-map (iterator-seq headers)))
+
+;;; Entity processors.
 (defmulti entity-as (fn [entity as] as))
 
 (defmethod entity-as :identity [entity as] entity)
+
 (defmethod entity-as nil [entity as] entity)
 
 (defmethod entity-as :stream [#^HttpEntity entity as]
   (.getContent entity))
+
 (defmethod entity-as :reader [#^HttpEntity entity as]
   (duck/reader (.getContent entity)))
+
 (defmethod entity-as :string [#^HttpEntity entity as]
   (duck/slurp* (.getContent entity)))
 
 (defn- handle-http
-  "Returns a map of code, reason, content (entity-as HttpEntity as),
-  headers, response, client."
-  ([parameters http-verb as]
-   (handle-http parameters http-verb as nil))
+  "Returns a map of
+    code,
+    reason,
+    content
+    (entity-as HttpEntity as),
+    (headers-as headers),
+    response,
+    client."
+  ([parameters http-verb as h-as]
+   (handle-http parameters http-verb as h-as nil))
 
-  ([parameters http-verb as #^CookieStore cookie-store]
+  ([parameters http-verb as h-as #^CookieStore cookie-store]
    (let [#^DefaultHttpClient http-client (new DefaultHttpClient)
          params (.getParams http-client)]
 
@@ -109,7 +173,9 @@
                      :entity entity
                      :client http-client
                      :response http-response
-                     :headers (iterator-seq (.headerIterator http-response))}]
+                     :headers (headers-as
+                                (.headerIterator http-response)
+                                h-as)}]
 
        ;; I don't know if it's actually a good thing to do this.
        ;(.. http-client getConnectionManager closeExpiredConnections)
@@ -160,7 +226,8 @@
   `(defn ~verb
      ~(str "Submit an HTTP " verb " request. The query string is appended to the URI.")
      [uri-parts# & rest#]
-     (let [{:keys [~'query ~'headers ~'parameters ~'as ~'cookie-store]} (apply hash-map rest#)]
+     (let [{:keys [~'query ~'headers ~'parameters ~'as ~'headers-as
+                   ~'cookie-store]} (apply hash-map rest#)]
        (handle-http
          ~'parameters
          (adding-headers!
@@ -168,6 +235,7 @@
                 (resolve-uri uri-parts# ~'query))
            ~'headers)
          ~'as
+         ~'headers-as
          ~'cookie-store))))
  
 ;; For requests with bodies.
@@ -184,7 +252,8 @@ Optional keyword arguments:
 If both query and body are provided, the query string is appended to the URI.
 If only a query parameter map is provided, it is included in the body.")
     [uri-parts# & rest#]
-    (let [{:keys [~'query ~'headers ~'body ~'parameters ~'as
+    (let [{:keys [~'query ~'headers ~'body ~'parameters
+                  ~'as ~'headers-as
                   ~'cookie-store]}
           (apply hash-map rest#)]
       (let [http-verb# (new ~class (resolve-uri uri-parts# (when ~'body ~'query)))]
@@ -199,6 +268,7 @@ If only a query parameter map is provided, it is included in the body.")
           (adding-headers!
             http-verb# ~'headers)
           ~'as
+         ~'headers-as
           ~'cookie-store)))))
   
 (def-http-body-verb post HttpPost)
