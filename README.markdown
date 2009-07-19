@@ -5,11 +5,11 @@
 
 <http://hc.apache.org/>
 
-It defines functions to perform HTTP requests, returning Clojure data
+It defines functions to perform HTTP requests, extensibly returning Clojure data
 structures for most outputs.
 
 Some knowledge of the underlying Apache `HttpClient` API is necessary for more
-advanced usage, such as extracting response headers and specifying cookie jars.
+advanced usage, such as specifying cookie jars.
 
 For real-world code using this library, see the `clj-mql` project:
 
@@ -60,7 +60,7 @@ The result of calling these functions is a map as follows:
 * The content (subject to transformation): `:content`
 * The Apache `Entity` associated with the request/response pair: `:entity`
 * The Apache `HttpClient` used for the request (which allows access to the cookie jar): `:client`
-* The response headers.
+* The response headers (also subject to transformation): `:headers`.
 
 Typically most of these can be ignored; `:code` and `:content` are the most important fields.
 
@@ -150,7 +150,7 @@ The keys are long-winded Java constants, but the capability is very useful
 
 <http://hc.apache.org/httpcomponents-client/httpclient/apidocs/org/apache/http/client/params/AllClientPNames.html>
 
-To avoid verbosity, a function map->params is provided. This will rename the keys in your input to the appropriate constants.
+To avoid verbosity, a function `map->params` is provided. This will rename the keys in your input to the appropriate constants.
 
 For example, to issue a `HEAD` request via a proxy:
 
