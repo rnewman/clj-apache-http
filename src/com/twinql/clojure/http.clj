@@ -33,10 +33,24 @@
     (str x)))
     
 (defn- map->name-value-pairs
-  "Take an associative structure and return a sequence of BasicNameValuePairs."
+  "Take an associative structure and return a sequence of BasicNameValuePairs.
+  Any associated value that is sequential will appear multiple times in the output, so that
+  
+    {:foo [\"bar\" \"baz\"]}
+  
+  will produce pairs that encode to
+  
+    ?foo=bar&foo=baz"
   [q]
-  (map (fn [[param value]] 
-         (new BasicNameValuePair (as-str param) (as-str value)))
+  (mapcat
+    (fn [[param value]]
+      (if (and (sequential? value)
+               (not (empty? value)))
+        (map (partial (fn [#^String p v]
+                        (new BasicNameValuePair p (as-str v)))
+                      (as-str param))
+             value)
+        [(new BasicNameValuePair (as-str param) (as-str value))]))
        q))
 
 (defn encode-query [q]

@@ -71,7 +71,19 @@ You can specify the format in which you wish to receive body content and
 headers using the `:as` and `:headers-as` keyword arguments. See below for
 details.
 
+# Query parameters *
 
+Query parameters (as supplied to the `:query` argument) should be associative:
+either a map or a sequence of pairs. Parameters will be processed with
+`as-str`. Non-sequential values will also be processed with `as-str`;
+sequential values (such as vectors) will be turned into multiple query
+parameters, as expected by most HTTP servers. For example:
+
+    (encode-query {:foo "bar" :baz ["noo" 5 true] :top {:x 5 :y 7}})
+    =>
+    "foo=bar&baz=noo&baz=5&baz=true&top=%7B%3Ax+5%2C+%3Ay+7%7D"
+
+    
 # Examples #
 
     (:content (http/get (java.net.URI. "http://example.com") :as :string))
