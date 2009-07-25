@@ -25,6 +25,8 @@
       BasicNameValuePair)
     (org.apache.http.impl.client DefaultHttpClient BasicResponseHandler)))
 
+(set! *warn-on-reflection* true)
+
 (defn- #^String as-str
   "Because contrib's isn't typed correctly."
   [x]
@@ -106,12 +108,12 @@
 (defn header-map
   "Return a map from header names to vectors of values."
   [headers]
-  (collect-map (fn [h] {(.getName h) [(.getValue h)]}) headers))
+  (collect-map (fn [#^Header h] {(.getName h) [(.getValue h)]}) headers))
 
 (defn header-element-map
   "Return a map from header names to vectors of array of HeaderElement"
   [headers]
-  (collect-map (fn [h] {(.getName h) [(.getElements h)]}) headers))
+  (collect-map (fn [#^Header h] {(.getName h) [(.getElements h)]}) headers))
 
 ;;; Header processors.
 (defmulti headers-as (fn [headers as] as))
@@ -203,21 +205,22 @@
       (.addHeader verb h (str v))))
   verb)
 
-(defn resolve-uri [uri-parts query-parameters]
+(defn #^URI resolve-uri [uri-parts query-parameters]
   (cond
     (instance? URI uri-parts)
-    (if (and query-parameters
-             (not (empty? query-parameters)))
-      (. URIUtils createURI 
-         (or (.getScheme uri-parts) "http")
-         (.getHost uri-parts)
-         (.getPort uri-parts)
-         (.getPath uri-parts)
-         (combine-query
-           (.getQuery uri-parts)
-           (encode-query query-parameters))
-         (.getFragment uri-parts))
-      uri-parts)
+    (let [#^URI u uri-parts]
+      (if (and query-parameters
+               (not (empty? query-parameters)))
+        (. URIUtils createURI 
+           (or (.getScheme u) "http")
+           (.getHost u)
+           (.getPort u)
+           (.getPath u)
+           (combine-query
+             (.getQuery u)
+             (encode-query query-parameters))
+           (.getFragment u))
+        u))
     
     (associative? uri-parts)
     (let [{:keys [scheme host path port query fragment]} uri-parts]
