@@ -14,6 +14,7 @@
       StatusLine)
     (org.apache.http.client.entity UrlEncodedFormEntity)
     (org.apache.http.client.methods
+      HttpOptions
       HttpGet HttpPost HttpPut HttpDelete HttpHead)
     (org.apache.http.client
       CookieStore
@@ -293,6 +294,7 @@ If only a query parameter map is provided, it is included in the body.")
 (def-http-verb get HttpGet)
 (def-http-verb head HttpHead)
 (def-http-verb delete HttpDelete)
+(def-http-verb options HttpOptions)
 
 (defn #^HttpHost http-host [& args]
   (let [{:keys [host port scheme]} (apply hash-map args)]
