@@ -16,12 +16,19 @@ For real-world code using this library, see the `clj-mql` project:
 <https://github.com/rnewman/clj-mql/tree/master>
 
  
-# Building #
+# Building with Ant #
 
-Simply use `ant`, optionally passing `-Dclojure.jar="..."` and `-Dclojure.contrib.jar="..."`.
+Invoke `ant`, optionally passing `-Dclojure.jar="..."` and `-Dclojure.contrib.jar="..."`.
 
 Put `clj-apache-http.jar` on your classpath.
 
+# Building with Leiningen #
+
+If you use Leiningen, run `lein uberjar`. This will download the necessary
+dependencies and build a single .jar named `clj-apache-http-standalone.jar`.
+
+You can also refer to `com.twinql.clojure/clj-apache-http "1.0"` in Leiningen
+or Maven to have the dependency automatically satisfied.
 
 # Loading #
 
