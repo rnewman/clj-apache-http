@@ -1,1 +1,1 @@
-CLASSPATH=src:tests:~/code/clojure/vimclojure-2.1.1/build/vimclojure.jar:/opt/clojure/clojure.jar:/opt/clojure-contrib/clojure-contrib.jar CLOJURE_EXT=lib/ ~/code/clojure/vimclojure-2.1.1/bin/ng-server
+CLASSPATH=src:tests:~/code/clojure/vimclojure-2.1.2/build/vimclojure.jar:/opt/clojure/clojure.jar:/opt/clojure-contrib/clojure-contrib.jar CLOJURE_EXT=lib/ ~/code/clojure/vimclojure-2.1.2/bin/ng-server
