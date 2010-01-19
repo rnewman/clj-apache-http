@@ -7,24 +7,45 @@
     (java.net URI)
     (org.apache.http
       HttpHost        ; For proxy.
+      HttpRequest
+      HttpRequestInterceptor
       HttpResponse
       HttpEntity
       Header
       HeaderIterator
       StatusLine)
-    (org.apache.http.client.entity UrlEncodedFormEntity)
+    (org.apache.http.auth
+      AuthScope
+      AuthState
+      Credentials
+      UsernamePasswordCredentials)
+    (org.apache.http.client.entity
+      UrlEncodedFormEntity)
     (org.apache.http.client.methods
       HttpOptions
+      HttpUriRequest
       HttpGet HttpPost HttpPut HttpDelete HttpHead)
+    (org.apache.http.protocol
+      BasicHttpContext
+      HttpContext)
     (org.apache.http.client
       CookieStore
+      CredentialsProvider
       HttpClient
       ResponseHandler)
-    (org.apache.http.client.utils URIUtils URLEncodedUtils)
+    (org.apache.http.client.protocol
+      ClientContext)
+    (org.apache.http.client.utils
+      URIUtils
+      URLEncodedUtils)
     (org.apache.http.message
       AbstractHttpMessage
       BasicNameValuePair)
-    (org.apache.http.impl.client DefaultHttpClient BasicResponseHandler)))
+    (org.apache.http.impl.auth
+      BasicScheme)
+    (org.apache.http.impl.client
+      DefaultHttpClient
+      BasicResponseHandler)))
 
 (set! *warn-on-reflection* true)
 
@@ -156,6 +177,65 @@
 (defmethod entity-as :string [#^HttpEntity entity as]
   (duck/slurp* (.getContent entity)))
 
+(defn preemptive-basic-auth-filter
+  "Returns a function suitable for passing to HTTP
+  requests. Implements preemptive Basic auth."
+  [#^String user-pass]
+  (let [#^Credentials c (UsernamePasswordCredentials. user-pass)]
+
+    ;; 4.1 version. Untested, of course.
+    #_
+    (fn [#^HttpClient  client
+         #^HttpRequest request
+         #^HttpContext context]
+      (let [#^URI u (.getURI request)
+            #^String target-host (.getHost u)
+            target-port (or (.getPort u)
+                            (if (= "https" (.getScheme u))
+                              443
+                              80))])
+      (.setCredentials (.getCredentialsProvider client)
+                       (AuthScope. target-host target-port)
+                       c)
+      (.setAttribute context ClientContext/AUTH_CACHE
+                     (doto (BasicAuthCache.)
+                       (.put target-host (BasicScheme.)))))
+
+    ;; 4.0.1 version.
+    (fn [#^DefaultHttpClient  client
+         #^HttpRequest request
+         #^HttpContext context]
+
+      ;; Introduce a "filter" abstraction to apply operations to the
+      ;; participants in an HTTP request.
+      ;; Implemented this way because auth (and presumably other
+      ;; things) changes between 4.0.1 and 4.1, and 4.1 is only in
+      ;; alpha right now. *sigh*
+      ;; In 4.1, set up the AuthCache. In 4.0.1, make a
+      ;; RequestInterceptor.
+      (let [#^HttpRequestInterceptor prx
+            (proxy [HttpRequestInterceptor] []
+              (process
+               [#^HttpUriRequest request
+                #^HttpContext context]
+
+               (let [#^AuthState auth-state (.getAttribute context ClientContext/TARGET_AUTH_STATE)
+                     #^CredentialsProvider c-p (.getAttribute context ClientContext/CREDS_PROVIDER)
+                     #^URI u (.getURI request)
+                     #^String target-host (.getHost u)
+                     target-port (or (.getPort u)
+                                     (if (= "https" (.getScheme u))
+                                       443
+                                       80))]
+                 
+                 (when-not (.getAuthScheme auth-state)
+                   (.setCredentials c-p (AuthScope. target-host target-port) c)
+                   (.setAuthScheme auth-state (BasicScheme.))
+                   (.setCredentials auth-state c)))))]
+        
+        (.addRequestInterceptor client prx 0)))))
+
+
 (defn- handle-http
   "Returns a map of
     code,
@@ -168,7 +248,10 @@
   ([parameters http-verb as h-as]
    (handle-http parameters http-verb as h-as nil))
 
-  ([parameters http-verb as h-as #^CookieStore cookie-store]
+  ([parameters #^HttpUriRequest http-verb as h-as
+    #^CookieStore cookie-store
+    filters]
+     
    (let [#^DefaultHttpClient http-client (new DefaultHttpClient)
          params (.getParams http-client)]
 
@@ -179,8 +262,19 @@
      (when parameters
        (doseq [[pname pval] parameters]
          (.setParameter params pname pval)))
+    
+     (let [#^HttpResponse http-response
+           ;; Used for manipulation of the request prior to execution.
+           ;; Allows things like Basic Auth.
+           (if filters
+             (let [#^BasicHttpContext context (BasicHttpContext.)]
+               (doseq [f filters]
+                 (f http-client http-verb context))
+               (.execute http-client http-verb context))
 
-     (let [#^HttpResponse http-response (. http-client execute http-verb)
+             ;; Otherwise, be simple.
+             (.execute http-client http-verb))
+            
            #^StatusLine   status-line   (.getStatusLine http-response)
            #^HttpEntity   entity        (.getEntity http-response)
 
@@ -191,11 +285,11 @@
                      :client http-client
                      :response http-response
                      :headers (headers-as
-                                (.headerIterator http-response)
-                                h-as)}]
+                               (.headerIterator http-response)
+                               h-as)}]
 
        ;; I don't know if it's actually a good thing to do this.
-       ;(.. http-client getConnectionManager closeExpiredConnections)
+                                        ;(.. http-client getConnectionManager closeExpiredConnections)
        (.. http-client getConnectionManager shutdown)
        
        response))))
@@ -245,7 +339,7 @@
      ~(str "Submit an HTTP " verb " request. The query string is appended to the URI.")
      [uri-parts# & rest#]
      (let [{:keys [~'query ~'headers ~'parameters ~'as ~'headers-as
-                   ~'cookie-store]} (apply hash-map rest#)]
+                   ~'cookie-store ~'filters]} (apply hash-map rest#)]
        (handle-http
          ~'parameters
          (adding-headers!
@@ -254,7 +348,8 @@
            ~'headers)
          ~'as
          ~'headers-as
-         ~'cookie-store))))
+         ~'cookie-store
+         ~'filters))))
  
 ;; For requests with bodies.
 (defmacro def-http-body-verb [verb class]
@@ -266,13 +361,15 @@ Optional keyword arguments:
   :body       -- an HttpEntity.
                  See <http://hc.apache.org/httpcomponents-core/httpcore/apidocs/org/apache/http/HttpEntity.html?is-external=true>.
   :parameters -- a map of values to be passed to HttpParams.setParameter.
+  :filters    -- a sequence of request filter functions, as produced by `preemptive-basic-auth-filter`.
 
 If both query and body are provided, the query string is appended to the URI.
 If only a query parameter map is provided, it is included in the body.")
     [uri-parts# & rest#]
     (let [{:keys [~'query ~'headers ~'body ~'parameters
                   ~'as ~'headers-as
-                  ~'cookie-store]}
+                  ~'cookie-store
+                  ~'filters]}
           (apply hash-map rest#)]
       (let [http-verb# (new ~class (resolve-uri uri-parts# (when ~'body ~'query)))]
         (if ~'body
@@ -287,7 +384,8 @@ If only a query parameter map is provided, it is included in the body.")
             http-verb# ~'headers)
           ~'as
           ~'headers-as
-          ~'cookie-store)))))
+          ~'cookie-store
+          ~'filters)))))
   
 (def-http-body-verb post HttpPost)
 (def-http-body-verb put HttpPut)
