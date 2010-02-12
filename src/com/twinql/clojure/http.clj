@@ -164,21 +164,21 @@
 ;;; Entity processors.
 ;;; None of these care about the third argument, which is the status
 ;;; code.
-(defmulti entity-as (fn [entity as & args] as))
+(defmulti entity-as (fn [entity as status] as))
 
 (defmethod entity-as :identity
-  [entity as & args] entity)
+  [entity as status] entity)
 
 (defmethod entity-as nil
-  [entity as & args] entity)
+  [entity as status] entity)
 
-(defmethod entity-as :stream [#^HttpEntity entity as & args]
+(defmethod entity-as :stream [#^HttpEntity entity as status]
   (.getContent entity))
 
-(defmethod entity-as :reader [#^HttpEntity entity as & args]
+(defmethod entity-as :reader [#^HttpEntity entity as status]
   (duck/reader (.getContent entity)))
 
-(defmethod entity-as :string [#^HttpEntity entity as & args]
+(defmethod entity-as :string [#^HttpEntity entity as status]
   (duck/slurp* (.getContent entity)))
 
 (defn preemptive-basic-auth-filter
@@ -285,14 +285,7 @@
            response {:code (.getStatusCode status-line)
                      :reason (.getReasonPhrase status-line)
                      :content
-                     
-                     ;; Just while we go through the transition
-                     ;; period from 2-arg to 3-arg..
-                     (try 
-                      (entity-as entity as (.getStatusCode status-line))
-                      (catch java.lang.IllegalArgumentException e
-                        ;; Wrong number of args.
-                        (entity-as entity as)))
+                     (entity-as entity as (.getStatusCode status-line))
                      
                      :entity entity
                      :client http-client
