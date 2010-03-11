@@ -1,7 +1,7 @@
 (ns com.twinql.clojure.http
   (:refer-clojure :exclude [get])
   (:use clojure.set)
-  (:require [clojure.contrib.duck-streams :as duck])
+  (:require [clojure.contrib.io :as io])
   (:import 
     (java.lang Exception)
     (java.net URI)
@@ -176,10 +176,10 @@
   (.getContent entity))
 
 (defmethod entity-as :reader [#^HttpEntity entity as status]
-  (duck/reader (.getContent entity)))
+  (io/reader (.getContent entity)))
 
 (defmethod entity-as :string [#^HttpEntity entity as status]
-  (duck/slurp* (.getContent entity)))
+  (io/slurp* (.getContent entity)))
 
 (defn preemptive-basic-auth-filter
   "Returns a function suitable for passing to HTTP
