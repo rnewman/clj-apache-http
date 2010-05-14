@@ -1,7 +1,9 @@
 (ns com.twinql.clojure.http
   (:refer-clojure :exclude [get])
   (:use clojure.set)
-  (:require [clojure.contrib.io :as io])
+  (:require
+     [clojure.contrib.io :as io]
+     [clojure.contrib.json :as json])
   (:import 
     (java.lang Exception)
     (java.net URI)
@@ -180,6 +182,14 @@
 
 (defmethod entity-as :string [#^HttpEntity entity as status]
   (io/slurp* (.getContent entity)))
+
+;;; JSON handling.
+;;; We prefer keywordizing.
+(defmethod entity-as :json [#^HttpEntity entity as status]
+  (clojure.contrib.json/read-json (io/reader (.getContent entity)) true))
+
+(defmethod entity-as :json-string-keys [#^HttpEntity entity as status]
+  (clojure.contrib.json/read-json (io/reader (.getContent entity)) false))
 
 (defn preemptive-basic-auth-filter
   "Returns a function suitable for passing to HTTP
