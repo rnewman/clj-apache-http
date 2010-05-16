@@ -134,9 +134,11 @@ You can use `:query`, `:headers`, `:parameters`, `:as`, and `:headers-as`.
 The first three are associative. `:as` can be:
 
 * `:identity` (or `nil`), returning the Apache HC entity object,
-* `:stream`, returning a stream
+* `:stream`, returning a stream,
 * `:reader`, returning a `Reader`,
-* or `:string`,
+* `:json`, which will parse a JSON response body and return the keys of maps as keywords,
+* `:json-string-keys`, which leaves maps with string keys,
+* or `:string`.
 
 `:headers-as` can be
 
@@ -150,14 +152,14 @@ Define your own extensions by defining a method on '`entity-as`' that turns an
 `HttpEntity` into the appropriate format, or '`headers-as`' that turns a
 `HeaderIterator` into the format of your choice.
 
-The `clj-mql` project defines an entity transformation method for JSON output, allowing 
-requests like
+Each entity transformer receives the entity, the format, and the status code as arguments: you can thus avoid trying to process certain failure responses. For example:
 
-    (:content (http/get "http://api.freebase.com/api/status" :as :json))
-    =>
-    {:transaction_id "cache;cache01.p01.sjc1:8101;2009-07-16T19:36:52Z;0006",
-     :status "200 OK", :relevance "OK", :graph "OK",
-     :code "/api/status/ok", :blob "OK"}
+    (defmethod http/entity-as :success-json [#^HttpEntity entity as status]
+      (http/entity-as entity
+        (if (<= 200 status 299)
+         :json
+         :string)
+        status))
 
 
 # Apache connection parameters #
