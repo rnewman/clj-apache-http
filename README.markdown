@@ -27,7 +27,7 @@ Put `clj-apache-http.jar` on your classpath.
 If you use Leiningen, run `lein uberjar`. This will download the necessary
 dependencies and build a single .jar named `clj-apache-http-standalone.jar`.
 
-You can also refer to `com.twinql.clojure/clj-apache-http "1.0"` in Leiningen
+You can also refer to `com.twinql.clojure/clj-apache-http "2.1.0"` in Leiningen
 or Maven to have the dependency automatically satisfied.
 
 # Loading #
