@@ -49,7 +49,7 @@
       DefaultHttpClient
       BasicResponseHandler)))
 
-(set! *warn-on-reflection* true)
+;(set! *warn-on-reflection* true)
 
 (defn- #^String as-str
   "Because contrib's isn't typed correctly."
