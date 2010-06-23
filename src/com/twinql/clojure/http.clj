@@ -45,6 +45,22 @@
       BasicNameValuePair)
     (org.apache.http.impl.auth
       BasicScheme)
+    (org.apache.http.conn.ssl
+      SSLSocketFactory)
+    (org.apache.http.conn.scheme
+      PlainSocketFactory
+      SchemeRegistry
+      Scheme)
+    (java.security
+      KeyStore)
+    (org.apache.http.params
+      BasicHttpParams)
+    (org.apache.http.conn
+      ClientConnectionManager)
+    (org.apache.http.impl.conn
+      SingleClientConnManager)
+    (org.apache.http.impl.conn.tsccm
+      ThreadSafeClientConnManager)
     (org.apache.http.impl.client
       DefaultHttpClient
       BasicResponseHandler)))
@@ -191,6 +207,64 @@
 (defmethod entity-as :json-string-keys [#^HttpEntity entity as status]
   (clojure.contrib.json/read-json (io/reader (.getContent entity)) false))
 
+
+;;; To avoid overhead in shutting down a ClientConnectionManager,
+;;; support a thread pool.
+
+(defn #^SchemeRegistry scheme-registry [ssl?]
+  (let [#^SchemeRegistry scheme-registry (SchemeRegistry.)]
+    (when ssl?
+      (.register scheme-registry
+                 (Scheme. "https"
+                          (SSLSocketFactory.
+                            (KeyStore/getInstance
+                              (KeyStore/getDefaultType)))
+                          443)))
+
+    (.register scheme-registry
+               (Scheme. "http"
+                        (PlainSocketFactory.)
+                        80))
+    scheme-registry))
+
+(defn #^ClientConnectionManager single-client-connection-manager
+  "Produce a new SingleClientConnManager with http and https, or
+   the provided registry."
+  ([]
+   (single-client-connection-manager (scheme-registry true)))
+  ([#^SchemeRegistry registry]
+   ;; The HTTP params go away in 4.1.
+   (SingleClientConnManager. (BasicHttpParams.) registry)))
+
+(defn #^ClientConnectionManager thread-safe-connection-manager
+  "Produce a new ThreadSafeClientConnManager with http and https, or
+   the provided registry."
+  ([]
+   (thread-safe-connection-manager (scheme-registry true)))
+  ([#^SchemeRegistry registry]
+   ;; The HTTP params go away in 4.1.
+   ;; BasicHttpParams isn't thread-safe...!
+   (ThreadSafeClientConnManager. (BasicHttpParams.) registry)))
+
+(defn shutdown-connection-manager
+  [#^ClientConnectionManager ccm]
+  (.shutdown ccm))
+
+(defmacro with-connection-manager [[v kind] & body]
+  (let [valid #{:thread-safe :single-client}]
+    (when-not (contains? valid kind)
+      (throw (IllegalArgumentException.
+               (str "Valid connection manager kinds: " valid))))
+    `(let [~v (~({:thread-safe `thread-safe-connection-manager
+                  :single-client `single-client-connection-manager}
+                 kind))]
+       (try
+         (do ~@body)
+         (finally
+           (try
+             (shutdown-connection-manager ~v)
+             (catch Exception e#)))))))
+
 (defn preemptive-basic-auth-filter
   "Returns a function suitable for passing to HTTP
   requests. Implements preemptive Basic auth."
@@ -264,9 +338,16 @@
 
   ([parameters #^HttpUriRequest http-verb as h-as
     #^CookieStore cookie-store
-    filters]
+    filters
+    #^ClientConnectionManager
+    connection-manager]
      
-   (let [#^DefaultHttpClient http-client (DefaultHttpClient.)
+   (let [#^DefaultHttpClient http-client (if connection-manager
+                                           (DefaultHttpClient.
+                                             connection-manager
+                                             ;; Params go away in 4.1.
+                                             (BasicHttpParams.))
+                                           (DefaultHttpClient.))
          params (.getParams http-client)]
 
      (when cookie-store
@@ -306,7 +387,8 @@
 
        ;; I don't know if it's actually a good thing to do this.
        ;; (.. http-client getConnectionManager closeExpiredConnections)
-       (.. http-client getConnectionManager shutdown)
+       (when-not connection-manager
+         (.. http-client getConnectionManager shutdown))
        
        response))))
 
@@ -355,7 +437,8 @@
      ~(str "Submit an HTTP " verb " request. The query string is appended to the URI.")
      [uri-parts# & rest#]
      (let [{:keys [~'query ~'headers ~'parameters ~'as ~'headers-as
-                   ~'cookie-store ~'filters]} (apply hash-map rest#)]
+                   ~'cookie-store ~'filters
+                   ~'connection-manager]} (apply hash-map rest#)]
        (handle-http
          ~'parameters
          (adding-headers!
@@ -365,7 +448,8 @@
          ~'as
          ~'headers-as
          ~'cookie-store
-         ~'filters))))
+         ~'filters
+         ~'connection-manager))))
  
 ;; For requests with bodies.
 (defmacro def-http-body-verb [verb class]
@@ -378,6 +462,7 @@ Optional keyword arguments:
                  See <http://hc.apache.org/httpcomponents-core/httpcore/apidocs/org/apache/http/HttpEntity.html?is-external=true>.
   :parameters -- a map of values to be passed to HttpParams.setParameter.
   :filters    -- a sequence of request filter functions, as produced by `preemptive-basic-auth-filter`.
+  :connection-manager -- an instance of ClientConnectionManager, or nil.
 
 If both query and body are provided, the query string is appended to the URI.
 If only a query parameter map is provided, it is included in the body.")
@@ -385,7 +470,8 @@ If only a query parameter map is provided, it is included in the body.")
     (let [{:keys [~'query ~'headers ~'body ~'parameters
                   ~'as ~'headers-as
                   ~'cookie-store
-                  ~'filters]}
+                  ~'filters
+                  ~'connection-manager]}
           (apply hash-map rest#)]
       (let [http-verb# (new ~class (resolve-uri uri-parts# (when ~'body ~'query)))]
         (if ~'body
@@ -401,7 +487,8 @@ If only a query parameter map is provided, it is included in the body.")
           ~'as
           ~'headers-as
           ~'cookie-store
-          ~'filters)))))
+          ~'filters
+          ~'connection-manager)))))
   
 (def-http-body-verb post HttpPost)
 (def-http-body-verb put HttpPut)

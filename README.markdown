@@ -27,7 +27,7 @@ Put `clj-apache-http.jar` on your classpath.
 If you use Leiningen, run `lein uberjar`. This will download the necessary
 dependencies and build a single .jar named `clj-apache-http-standalone.jar`.
 
-You can also refer to `com.twinql.clojure/clj-apache-http "2.1.0"` in Leiningen
+You can also refer to `com.twinql.clojure/clj-apache-http "2.2.0"` in Leiningen
 or Maven to have the dependency automatically satisfied.
 
 # Loading #
@@ -178,3 +178,31 @@ For example, to issue a `HEAD` request via a proxy:
     (http/head "http://github.com/"
       :parameters (http/map->params
                     {:default-proxy (http/http-host :host "localhost" :port 8080)}))
+
+# Optimization #
+
+If you're planning intensive use of HTTP operations, you might want more
+control over the connection manager (the component which maintains a pool of
+connections).
+
+`clj-apache-http` exposes one utility, `thread-safe-connection-manager`. It can
+be called with no arguments, or with a `SchemeRegistry`.
+
+Simply hold on to one of these, then pass it as the value of
+`:connection-manager`, as in this example:
+
+    (let [ccm (http/thread-safe-connection-manager)]
+      (println "Result:"
+        (:code (http/get "http://github.com" :as :string
+                         :connection-manager ccm)))
+      (http/shutdown-connection-manager ccm))
+
+Don't forget to call `shutdown-connection-manager` afterwards. The
+`with-connection-manager` macro does this for you, if your uses will all be
+within the same lexical scope:
+
+    (http/with-connection-manager [ccm :thread-safe]
+      (println "Result:"
+        (:code (http/get "http://github.com" :as :string
+                         :connection-manager ccm))))
+
