@@ -169,7 +169,7 @@ options on the HTTP client.
 The keys are long-winded Java constants, but the capability is very useful
 (e.g., for proxying). See 
 
-<http://hc.apache.org/httpcomponents-client/httpclient/apidocs/org/apache/http/client/params/AllClientPNames.html>
+<http://hc.apache.org/httpcomponents-client-4.0.1/httpclient/apidocs/org/apache/http/client/params/AllClientPNames.html>
 
 To avoid verbosity, a function `map->params` is provided. This will rename the keys in your input to the appropriate constants.
 
