@@ -1,4 +1,4 @@
-(defproject com.twinql.clojure/clj-apache-http "2.2.0"
+(defproject com.twinql.clojure/clj-apache-http "2.3.0"
  :description "Clojure HTTP library using the Apache HttpClient."
  :dev-dependencies [[leiningen/lein-swank "1.1.0"]]
  :dependencies [[org.clojure/clojure "1.2.0-master-SNAPSHOT"]
