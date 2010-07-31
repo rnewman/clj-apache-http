@@ -7,6 +7,7 @@
   (:import 
     (java.lang Exception)
     (java.net URI)
+    (java.io InputStream)
     (org.apache.http
       HttpHost        ; For proxy.
       HttpRequest
@@ -47,6 +48,9 @@
       BasicScheme)
     (org.apache.http.conn.ssl
       SSLSocketFactory)
+    (org.apache.http.conn.params
+      ConnPerRoute
+      ConnManagerPNames)
     (org.apache.http.conn.scheme
       PlainSocketFactory
       SchemeRegistry
@@ -54,7 +58,8 @@
     (java.security
       KeyStore)
     (org.apache.http.params
-      BasicHttpParams)
+      BasicHttpParams
+      HttpParams)
     (org.apache.http.conn
       ClientConnectionManager)
     (org.apache.http.impl.conn
@@ -190,22 +195,27 @@
 (defmethod entity-as nil
   [entity as status] entity)
 
+;; Client is responsible for cleanup.
 (defmethod entity-as :stream [#^HttpEntity entity as status]
   (.getContent entity))
 
+;; Client is responsible for cleanup.
 (defmethod entity-as :reader [#^HttpEntity entity as status]
   (io/reader (.getContent entity)))
 
 (defmethod entity-as :string [#^HttpEntity entity as status]
-  (io/slurp* (.getContent entity)))
+  (with-open [#^InputStream stream (.getContent entity)]
+    (io/slurp* stream)))
 
 ;;; JSON handling.
 ;;; We prefer keywordizing.
 (defmethod entity-as :json [#^HttpEntity entity as status]
-  (clojure.contrib.json/read-json (io/reader (.getContent entity)) true))
+  (with-open [#^InputStream stream (.getContent entity)]
+    (clojure.contrib.json/read-json (io/reader stream) true)))
 
 (defmethod entity-as :json-string-keys [#^HttpEntity entity as status]
-  (clojure.contrib.json/read-json (io/reader (.getContent entity)) false))
+  (with-open [#^InputStream stream (.getContent entity)]
+    (clojure.contrib.json/read-json (io/reader stream) false)))
 
 
 ;;; To avoid overhead in shutting down a ClientConnectionManager,
@@ -236,15 +246,25 @@
    ;; The HTTP params go away in 4.1.
    (SingleClientConnManager. (BasicHttpParams.) registry)))
 
+(defn #^BasicHttpParams connection-limits 
+  "Return HTTP Parameters for the provided connection limit."
+  [#^Integer max-total-connections]
+  (doto (BasicHttpParams.)
+    (.setParameter ConnManagerPNames/MAX_TOTAL_CONNECTIONS max-total-connections)))
+   
 (defn #^ClientConnectionManager thread-safe-connection-manager
   "Produce a new ThreadSafeClientConnManager with http and https, or
    the provided registry."
   ([]
    (thread-safe-connection-manager (scheme-registry true)))
+  
   ([#^SchemeRegistry registry]
    ;; The HTTP params go away in 4.1.
    ;; BasicHttpParams isn't thread-safe...!
-   (ThreadSafeClientConnManager. (BasicHttpParams.) registry)))
+   (thread-safe-connection-manager (BasicHttpParams.) registry))
+  
+  ([#^SchemeRegistry registry #^HttpParams params]
+   (ThreadSafeClientConnManager. params registry)))
 
 (defn shutdown-connection-manager
   [#^ClientConnectionManager ccm]
