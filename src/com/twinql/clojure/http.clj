@@ -261,7 +261,7 @@
   ([#^SchemeRegistry registry]
    ;; The HTTP params go away in 4.1.
    ;; BasicHttpParams isn't thread-safe...!
-   (thread-safe-connection-manager (BasicHttpParams.) registry))
+   (thread-safe-connection-manager registry (BasicHttpParams.)))
   
   ([#^SchemeRegistry registry #^HttpParams params]
    (ThreadSafeClientConnManager. params registry)))
