@@ -99,10 +99,9 @@ The easiest way to debug SSL connections is to do the following:
 It should look like this:
 
     (ns com.twinql.clojure.core
-      (:use com.twinql.clojure.x509-connection-manager)
-      (:gen-class))
-      
-    (defn -main [] <Your test code here>)
+     (:use com.twinql.clojure.x509-connection-manager)
+     (:gen-class))
+    (defn -main [] &lt;Your test code here&gt; )
 
 Obviously, your test code would look something like the `test-request`
 method above.
