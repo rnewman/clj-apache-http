@@ -95,7 +95,7 @@ called init-connection-manager, you can simply refer to *connection-manager*.
 
 The easiest way to debug SSL connections is to do the following:
 
-1. Create a core.clj file at clj-apache-http/src/com/twinql/clojure/cert.clj
+1. Create a core.clj file at clj-apache-http/src/com/twinql/clojure/core.clj
 It should look like this:
 
     (ns com.twinql.clojure.core
