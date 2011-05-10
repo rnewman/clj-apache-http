@@ -19,6 +19,7 @@ PermissiveHostnameVerifier by running these commands from the top-level
 project directory:
 
 `lein compile com.twinql.clojure.NaiveTrustManager`
+
 `lein compile com.twinql.clojure.PermissiveHostnameVerifier`
 
 # Usage #
@@ -27,29 +28,31 @@ The following example represents a basic use case, where http-opts describe
 the connection end point, and connection-opts describe security information
 that x509-connection-manager needs to set up the secure connection.
 
-  (defn test-request []
-    (let [http-opts {:host "someserver.xyzzy.com"
-                     :path "/DataLibrary/Secure"
-                     :scheme "https"
-                     :port 8686 }
-          connection-opts {:keystore-file "certs/xyzzy.keystore"
-                           :keystore-password "seekrit"
-                           :certificate-alias "default"
-                           :certificate-file "certs/my-client-cert.pem"
-                           :certificate-password nil
-                           :port 8686
-                           :trust-managers nil
-                           :hostname-verifier nil
-                           :http-params nil
-                           :connection-mgr-type "SingleClientConnManager" }
-          conn-manager (init-connection-manager connection-opts)]
-      (:content (http/post
-                 http-opts
-                 :as :string
-                     :headers { "Content-Type" "text/xml" }
-                     :body (StringEntity. "<test>hello</test>")
-                     :parameters { }
-                     :connection-manager conn-manager))))
+
+    (defn test-request []
+      (let [http-opts {:host "someserver.xyzzy.com"
+                       :path "/DataLibrary/Secure"
+                       :scheme "https"
+                       :port 8686 }
+            connection-opts {:keystore-file "certs/xyzzy.keystore"
+                             :keystore-password "seekrit"
+                             :certificate-alias "default"
+                             :certificate-file "certs/my-client-cert.pem"
+                             :certificate-password nil
+                             :port 8686
+                             :trust-managers nil
+                             :hostname-verifier nil
+                             :http-params nil
+                             :connection-mgr-type "SingleClientConnManager" }
+            conn-manager (init-connection-manager connection-opts)]
+        (:content (http/post
+                   http-opts
+                   :as :string
+                       :headers { "Content-Type" "text/xml" }
+                       :body (StringEntity. "<test>hello</test>")
+                       :parameters { }
+                       :connection-manager conn-manager))))
+
 
 This example shows all of the x509-connection-manager connection options. 
 The keystore-file should contain the private key that goes with your client
@@ -98,7 +101,7 @@ It should look like this:
     (ns com.twinql.clojure.core
       (:use com.twinql.clojure.x509-connection-manager)
       (:gen-class))
-
+      
     (defn -main [] <Your test code here>)
 
 Obviously, your test code would look something like the `test-request`
