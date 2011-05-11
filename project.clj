@@ -1,9 +1,14 @@
-(defproject diamondap/clj-apache-https "1.0"
+(defproject diamondap/clj-apache-https "1.0.1"
   :description "Clojure HTTP library using the Apache HttpClient. Based on clj-apache-http, but includes support for SSL client certificates."
- ;;:dev-dependencies [[leiningen/lein-swank "1.1.0"]]
+ ;:dev-dependencies [[leiningen/lein-swank "1.1.0"]]
  :dependencies [[org.clojure/clojure "1.2.0"]
                 [org.clojure/clojure-contrib "1.2.0"]
                 [org.apache.httpcomponents/httpcore "4.0.1"]
                 [org.apache.httpcomponents/httpmime "4.0.1"]
                 [commons-logging/commons-logging "1.1.1"]
                 [org.apache.httpcomponents/httpclient "4.0.1"]])
+
+;; lein jar clj-apache-https-1.0.1.jar
+;; jar uf clj-apache-https-1.0.1.jar classes/com/twinql/clojure/*
+;; lein pom
+;; scp pom.xml clj-apache-https-1.0.1.jar clojars@clojars.org:

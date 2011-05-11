@@ -17,7 +17,8 @@
    (java.io
     File
     FileInputStream
-    InputStreamReader)
+    InputStreamReader
+    FileNotFoundException)
    (org.apache.http.params
     BasicHttpParams
     HttpParams)
@@ -53,9 +54,14 @@
    FileInputStream. If there is no file at the specified path, and we
    are running as a jar, we'll attempt to load the resource embedded
    within the jar at the specified path."
-  (if (. (jutil/file path) exists)
-    (FileInputStream. path)
-    (load-embedded-resource path)))
+  (try
+    (if (. (jutil/file path) exists)
+      (FileInputStream. path)
+      (load-embedded-resource path))
+    (catch Exception _ (throw (new FileNotFoundException
+                                   (str "File or resource \""
+                                        path
+                                        "\" could not be found."))))))
 
 
 
