@@ -1,5 +1,18 @@
 # What is it? #
 
+This is a fork of clj-apache-http. This fork adds the ability to use SSL 
+client certificates for HTTPS connections. For information on how to include
+this library in your Clojure project, see:
+
+<http://clojars.org/diamondap/clj-apache-https>
+
+For information specific to the HTTPS connections using client certificates,
+see the x509-connection-manager README here:
+
+<https://github.com/diamondap/clj-apache-http/blob/master/README_X509.markdown>
+
+# The original clj-apache-http #
+
 `clj-apache-http` is a Clojure wrapper library for the Apache HTTP Client
 (version 4.0).
 
