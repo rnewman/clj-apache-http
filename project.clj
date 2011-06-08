@@ -8,7 +8,3 @@
                 [commons-logging/commons-logging "1.1.1"]
                 [org.apache.httpcomponents/httpclient "4.0.1"]])
 
-;; lein jar clj-apache-https-1.0.1.jar
-;; jar uf clj-apache-https-1.0.1.jar classes/com/twinql/clojure/*
-;; lein pom
-;; scp pom.xml clj-apache-https-1.0.1.jar clojars@clojars.org:
