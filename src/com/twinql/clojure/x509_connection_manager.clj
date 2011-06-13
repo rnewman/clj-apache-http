@@ -168,8 +168,30 @@
 (declare *connection-manager*)
 
 
+(defn #^SchemeRegistry init-scheme-registry
+  "Initializes and returns a SchemeRegistry. Use this if you need a
+   SchemeRegistry for some external connection manager or for the
+   async-client. See the doc for init-connection-manager."
+  [opts]
+  (let [initial-keystore (load-keystore
+                          (resource-stream (:keystore-file opts))
+                          (:keystore-password opts))
+        keystore-with-cert (add-x509-cert
+                            initial-keystore
+                            (:certificate-alias opts)
+                            (load-x509-cert (:certificate-file opts)))
+        key-mgr-factory (key-manager-factory
+                         keystore-with-cert
+                         (:keystore-password opts))
+        hostname-verifier (:hostname-verifier opts)
+        port (or (:port opts) 443)
+        ctx (create-ssl-context (:trust-managers opts) key-mgr-factory)
+        socket-factory (ssl-socket-factory ctx (:hostname-verifier opts))]
+    (scheme-registry socket-factory port)))
 
-(defn #^ClientConnectionManager init-connection-manager [opts]
+
+
+(defn #^ClientConnectionManager init-connection-manager
   "Creates an instance of ClientConnectionManager using the specified
    configuration options. After calling this, an instance of
    ClientConnectionManager will be available in *connection-manager*.
@@ -214,21 +236,8 @@
    would be :keystore-file and :keystore-password (for your private key)
    and :certificate-file (and :certificate-password if your client cert
    is password-protected) to load the X509 client certificate."
-  (let [initial-keystore (load-keystore
-                          (resource-stream (:keystore-file opts))
-                          (:keystore-password opts))
-        keystore-with-cert (add-x509-cert
-                            initial-keystore
-                            (:certificate-alias opts)
-                            (load-x509-cert (:certificate-file opts)))
-        key-mgr-factory (key-manager-factory
-                         keystore-with-cert
-                         (:keystore-password opts))
-        hostname-verifier (:hostname-verifier opts)
-        port (or (:port opts) 443)
-        ctx (create-ssl-context (:trust-managers opts) key-mgr-factory)
-        socket-factory (ssl-socket-factory ctx (:hostname-verifier opts))
-        scheme-registry (scheme-registry socket-factory port)
+  [opts]
+  (let [scheme-registry (init-scheme-registry opts)
         http-params (or (:http-params opts) (BasicHttpParams.))]
     (when-not (bound? #'*connection-manager*)
       (if (= (:connection-mgr-type opts) "SingleClientConnManager")
