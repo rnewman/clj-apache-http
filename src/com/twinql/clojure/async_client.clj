@@ -277,9 +277,6 @@
         (= method :delete) (HttpDelete. url)
         :else nil))
 
-;;(create-request :get "http://www.google.com")
-;;(create-request :post "http://www.yahoo.com")
-;;(create-request :put "http://www.bing.com")
 
 (defn add-request-headers!
   "Adds headers to a request. Headers should be a map."
@@ -304,9 +301,6 @@
          (interpose "&")
          (apply str))))
 
-;;(encode-query-params {"val1" "Chickety" "val2" 399 "val3" "Hello!!"})
-;;(encode-query-params {})
-
 
 (defn get-basic-auth-value
   "Returns the value of the basic auth header."
@@ -314,7 +308,6 @@
   (str "Basic "
        (string/chomp (base64/encode-str (str user ":" pwd)))))
 
-;;(get-basic-auth-value "CookieMonster" "Abcd@^&HiJk+=-)(")
 
 (defn add-basic-auth-header!
   "Adds a basic authentication header to the HTTP request."
@@ -335,19 +328,23 @@
         url))
     url))
 
+(defn set-query-params-in-body!
+  "Puts url-encoded query params in the body of an HTTP post and sets the
+   url-form-encoded header."
+  [request query-string body]
+  (. request setEntity (StringEntity. query-string))
+  (add-request-headers! request
+                        {"Content-Type" "application/x-www-form-urlencoded"}))
+
+
 (defn set-body!
   "For a POST, if there's a body, set the body. Otherwise, if there are query
    params and no body, put the query params in the body, and make sure we send
    the url-form-encoded header."
-  [request method query-string body]
-  (if (= method :post)
-    (if body
-      (. request setEntity (StringEntity. body))
-      (if query-string
-        ((add-request-headers!
-          request
-          {"Content-Type" "application/x-www-form-urlencoded"})
-         (. request setEntity (StringEntity. query-string)))))))
+  [request query-string body]
+  (cond
+   body (. request setEntity (StringEntity. body)) ;; URL encode this?
+   query-string (set-query-params-in-body! request query-string body )))
 
 
 (defn build-request
@@ -381,7 +378,10 @@
         request (create-request method full-url)]
 
     ;; Set the body if this is a post
-    (set-body! request method query-string body)
+    (if (= method :post)
+     (set-body! request query-string body))
+
+
 
     ;; Add all the request headers specified by the caller.
     (add-request-headers! request headers)
