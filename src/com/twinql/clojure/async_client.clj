@@ -11,7 +11,6 @@
             HttpResponse
             HttpHost))
   (:import (org.apache.http.client.methods
-            HttpRequestBase
             HttpDelete
             HttpGet
             HttpHead
@@ -73,18 +72,21 @@
   [on-complete on-cancel on-fail latch]
   org.apache.http.nio.concurrent.FutureCallback
   (completed [this response]
+             (println "Running completed callback")
              (try
-               (on-complete response)
+               ((:on-complete this) response)
                (finally
                 (. latch countDown))))
   (cancelled [this]
+             (println "Running cancelled callback")
              (try
-               (on-cancel)
+               (:on-cancel this)
                (finally
                 (. latch countDown))))
   (failed    [this ex]
+             (println "Running failed callback")
              (try
-               (on-fail ex)
+               ((:on-fail this) ex)
                (finally
                 (. latch countDown)))))
 
@@ -222,28 +224,47 @@
 
    Param callback is an instance of HttpCallback. See the documentation for
    for async-client/HttpCallback."
-  [client request-seq callback latch]
-  (try
-    (doseq [request request-seq]
-      (prn (str "Requesting " request))
-      (. client execute request callback))
-    ;;(. latch await)
-    (finally (. client shutdown))))
+  [conn-mgr requests on-success on-cancel on-fail]
+  (let [client (http-client conn-mgr)
+        latch (countdown-latch (count requests))
+        callback (HttpCallback. on-success on-cancel on-fail latch)]
+    (. client start)
+    (try
+      (doseq [request requests]
+        (try
+          (prn (str "Requesting " request))
+          (. client execute request callback)
+          (catch Exception ex
+            (println (str "Caught exception " (. ex getMessage)))
+            (.printStackTrace ex))))
+      (. latch await)
+      (finally (. client shutdown)))))
+      ;;(. client shutdown)
 
 
 
+(defn status [response]
+  "Returns the 3-digit status code from the response."
+  ())
+(defn headers [response]
+  "Returns the response headers as a hash-map."
+  ())
+(defn body [response]
+  "Returns the body of the response."
+  ())
 
 
 ;;(comment
   ;; Sample usage
 
-  (defn success [response]
-    (io/spit "___output___.html"
-             (io/slurp* (.. response getEntity getContent)))
+  (defn on-success [response]
+    ;;(io/spit "___output___.html"
+    ;;         (io/slurp* (.. response getEntity getContent)))
     ;;(println (.. response getRequestLine))
+    (println "OK")
     "OK")
-  (defn cancelled [] (println "Request cancelled"))
-  (defn failed [ex] (println (str "Request Error: " (. ex getMessage))))
+  (defn on-cancel [] (println "Request cancelled"))
+  (defn on-fail [ex] (println (str "Request Error: " (.getMessage ex))))
 
   (def get-requests
        [(HttpGet. "http://www.google.com")
@@ -254,11 +275,8 @@
   (defn run-gets
     ""
     []
-    (let [conn-mgr (connection-manager {} nil)
-          client (http-client conn-mgr)
-          latch (countdown-latch (count get-requests))
-          callback (HttpCallback. success cancelled failed latch)]
-      (execute-batch! client get-requests callback latch)))
+    (let [conn-mgr (connection-manager {} nil)]
+      (execute-batch! conn-mgr get-requests on-success on-cancel on-fail)))
 
 ;;  (run-gets)
 
