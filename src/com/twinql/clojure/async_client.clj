@@ -2,14 +2,19 @@
   (:import (java.util.concurrent
             CountDownLatch
             TimeUnit))
-  ;;(:import (java.io.InputStreamReader))
   (:import (javax.net.ssl
             SSLContext))
+  (:import (java.net
+            URLEncoder))
   (:import (org.apache.http.impl.nio.conn
             PoolingClientConnectionManager))
   (:import (org.apache.http
             HttpResponse
             HttpHost))
+  (:import (org.apache.http.entity
+            StringEntity))
+  (:import (org.apache.http.message
+            BasicHttpResponse))
   (:import (org.apache.http.client.methods
             HttpDelete
             HttpGet
@@ -41,7 +46,9 @@
             SSLLayeringStrategy))
   (:import (org.apache.http.impl.nio.reactor
             DefaultConnectingIOReactor))
-  (:require [clojure.contrib.io :as io]))
+  (:require [clojure.contrib.io :as io])
+  (:require [clojure.contrib.base64 :as base64])
+  (:require [clojure.contrib.string :as string]))
 
 (def #^AllowAllHostnameVerifier allow-all-hostname-verifier
      (AllowAllHostnameVerifier.))
@@ -243,15 +250,149 @@
 
 
 
-(defn status [response]
+(defn response-status [response]
   "Returns the 3-digit status code from the response."
-  ())
-(defn headers [response]
+  (.. response getStatusLine getStatusCode))
+
+(defn response-headers [response]
   "Returns the response headers as a hash-map."
-  ())
-(defn body [response]
+  (let [headers (. response getAllHeaders)]
+    (zipmap (map #(. % getName) headers)
+            (map #(. % getValue) headers))))
+
+(defn response-body [response]
   "Returns the body of the response."
-  ())
+  (io/slurp* (.. response getEntity getContent)))
+
+(defn create-request
+  "Returns a new instance of a request of the specified method. Param method
+   should be one of :get, :post, :put, :head, :options, :delete. Param url
+   should be a string describing the URL that will receive the request."
+  [method url]
+  (cond (= method :get) (HttpGet. url)
+        (= method :post) (HttpPost. url)
+        (= method :put) (HttpPut. url)
+        (= method :head) (HttpHead. url)
+        (= method :options) (HttpOptions. url)
+        (= method :delete) (HttpDelete. url)
+        :else nil))
+
+;;(create-request :get "http://www.google.com")
+;;(create-request :post "http://www.yahoo.com")
+;;(create-request :put "http://www.bing.com")
+
+(defn add-request-headers!
+  "Adds headers to a request. Headers should be a map."
+  [request headers]
+  (when headers
+    (doseq [[name value] headers]
+      (.addHeader request name (str value)))))
+
+(defn url-encode
+  "Returns a UTF8 url-encoded version of param string."
+  [string]
+  (URLEncoder/encode string "UTF-8"))
+
+
+(defn encode-query-params
+  "Returns query-params as a URL-encoded string. Param query-params should
+   be a map."
+  [query-params]
+  (when (and query-params (not-empty query-params))
+    (->> (for [[key value] query-params]
+           (str (url-encode (str key)) "=" (url-encode (str value))))
+         (interpose "&")
+         (apply str))))
+
+;;(encode-query-params {"val1" "Chickety" "val2" 399 "val3" "Hello!!"})
+;;(encode-query-params {})
+
+
+(defn get-basic-auth-value
+  "Returns the value of the basic auth header."
+  [user pwd]
+  (str "Basic "
+       (string/chomp (base64/encode-str (str user ":" pwd)))))
+
+;;(get-basic-auth-value "CookieMonster" "Abcd@^&HiJk+=-)(")
+
+(defn add-basic-auth-header!
+  "Adds a basic authentication header to the HTTP request."
+  [request user pwd]
+  (. request addHeader "Authorization" (get-basic-auth-value user pwd)))
+
+
+(defn get-full-url
+  "Returns the full URL. If method is :get and there is a query string,
+   or if method is :post and there is a query string and a body. Otherwise,
+   returns the url unchanged."
+  [method url query-string body]
+  (if query-string
+    (if (= method :get)
+      (str url "?" query-string)
+      (if (and (= method :post) body)
+        (str url "?" query-string)
+        url))
+    url))
+
+(defn set-body!
+  "For a POST, if there's a body, set the body. Otherwise, if there are query
+   params and no body, put the query params in the body, and make sure we send
+   the url-form-encoded header."
+  [request method query-string body]
+  (if (= method :post)
+    (if body
+      (. request setEntity (StringEntity. body))
+      (if query-string
+        ((add-request-headers!
+          request
+          {"Content-Type" "application/x-www-form-urlencoded"})
+         (. request setEntity (StringEntity. query-string)))))))
+
+
+(defn build-request
+  "Returns an HttpReqest object. You can make a sequence of requests and
+   pass them into execute-batch!
+
+   Param options is a map with the following keys. :method and :url are
+   required. The rest are optional:
+
+   :method             The HTTP request method. This is a symbol, and should be
+                       one of :get, :post, :put, :head, :options, :delete.
+
+   :url                A string: the url you want to get or post to.
+
+   :headers            A map of request headers.
+
+   :basic-auth-name    The user/account name to use for a server that requires
+                       basic authentication.
+
+   :basic-auth-pwd     The password to use for a server that requires basic
+                       authentication.
+
+   :body               A string. This will become the body of the PUT OR POST.
+
+   :query-params       A map of query parameters. These will be URL-encoded
+                       and added to the query string for a GET request or
+                       to the body of a PUT or POST."
+  [{:keys [method url headers basic-auth-name basic-auth-pwd body query-params]}]
+  (let [query-string (encode-query-params query-params)
+        full-url (get-full-url method url query-string body)
+        request (create-request method full-url)]
+
+    ;; Set the body if this is a post
+    (set-body! request method query-string body)
+
+    ;; Add all the request headers specified by the caller.
+    (add-request-headers! request headers)
+
+    ;; Add basic auth header, if necessary
+    (if (and basic-auth-name basic-auth-pwd)
+      (add-basic-auth-header! request basic-auth-name basic-auth-pwd))
+
+    request))
+
+
 
 
 ;;(comment
@@ -261,24 +402,44 @@
     ;;(io/spit "___output___.html"
     ;;         (io/slurp* (.. response getEntity getContent)))
     ;;(println (.. response getRequestLine))
-    (println "OK")
+    (println "STATUS")
+    (println (response-status response))
+    (println "HEADERS")
+    (println (response-headers response))
+    (println "BODY")
+    (println (response-body response))
     "OK")
   (defn on-cancel [] (println "Request cancelled"))
   (defn on-fail [ex] (println (str "Request Error: " (.getMessage ex))))
 
-  (def get-requests
-       [(HttpGet. "http://www.google.com")
-        (HttpGet. "http://www.hotelicopter.com")
-        (HttpGet. "http://www.bing.com")
-        (HttpGet. "http://www.jsonlint.com")])
+  (def requests
+       [{:method :get   :url "http://www.google.com"}
+        {:method :post  :url "http://www.hotelicopter.com"}
+        {:method :get   :url "http://www.bing.com"}
+        {:method :get   :url "http://www.jsonlint.com"}
+        {:method :get   :url "http://www.google.com/search"
+         :query-params {"source" "ig"
+                        "hl" "en"
+                        "rlz" ""
+                        "q" "clojure decompose options"
+                        "aq" "f"
+                        "aqi" ""
+                        "aql" ""
+                        "oq=" nil}}])
 
   (defn run-gets
     ""
     []
     (let [conn-mgr (connection-manager {} nil)]
-      (execute-batch! conn-mgr get-requests on-success on-cancel on-fail)))
+      (execute-batch! conn-mgr
+                      (map build-request requests)
+                      on-success
+                      on-cancel
+                      on-fail)))
 
-;;  (run-gets)
+;; (run-gets)
+
+;; (map #(prn %) requests)
 
 ;;  )
 
