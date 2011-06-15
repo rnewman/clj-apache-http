@@ -134,24 +134,51 @@
 ;; see clj-apache-http(s) lib
 ;; and http://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/org/apache/http/conn/params/ConnManagerPNames.html
 (def default-client-opts
-     (http/map->params
-      {
-       :so-timeout 6000                 ;; in ms
-       :connection-timeout 1000         ;; in ms
-       :cookie-policy
-       org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
-       ;;:default-proxy (http/http-host
-       ;;                :host sstj.config/*proxy-host*
-       ;;                :port sstj.config/*proxy-port*)
-       :user-agent "Clojure-Apache HTTPS"
-       :use-expect-continue false       ;; incompatible with squid/proxy
-       :tcp-nodelay true                ;; use more bandwidth to lower latency
-       :stale-connection-check false})) ;; saves up to 30ms / req
+     (async/create-http-params
+      (http/map->params
+       {
+        :so-timeout 1250                  ;; in ms
+        :connection-timeout 2112          ;; in ms
+        :cookie-policy
+        org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
+        ;;:default-proxy (http/http-host
+        ;;                :host "proxy.myco.kom:"
+        ;;                :port 8080)
+        :user-agent "Clojure-Apache HTTPS"
+        :use-expect-continue false        ;; incompatible with squid/proxy
+        :tcp-nodelay true                 ;; use more bandwidth to lower latency
+        :stale-connection-check false}))) ;; saves up to 30ms / req
+
+
+;; Make sure the call to create-http-params above produced a
+;; BasicHttpParams object with the settings we requested.
+(deftest test-http-params
+  (is (instance? org.apache.http.params.BasicHttpParams default-client-opts))
+  (is (= 1250 (. default-client-opts getParameter
+                 org.apache.http.params.CoreConnectionPNames/SO_TIMEOUT)))
+  (is (= 2112 (. default-client-opts getParameter
+                  org.apache.http.params.CoreConnectionPNames/CONNECTION_TIMEOUT)))
+  (is (= org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
+         (. default-client-opts getParameter
+            org.apache.http.client.params.ClientPNames/COOKIE_POLICY)))
+  (is (= "Clojure-Apache HTTPS"
+         (. default-client-opts getParameter
+            org.apache.http.params.CoreProtocolPNames/USER_AGENT)))
+  (is (= false (. default-client-opts getParameter
+                  org.apache.http.params.CoreProtocolPNames/USE_EXPECT_CONTINUE)))
+  (is (= true (. default-client-opts getParameter
+                 org.apache.http.params.CoreConnectionPNames/TCP_NODELAY)))
+  (is (= false (. default-client-opts getParameter
+                  org.apache.http.params.CoreConnectionPNames/STALE_CONNECTION_CHECK))))
+
+
+
 
 ;; Scheme names and port numbers. We want to register these in a
 ;; SchemeRegistry so our connection manager knows what's what.
 ;; Key is protocol name, value is port number.
-(def connection-schemes [{"http" 80 "https" 443}])
+(def connection-schemes [{"http" 80 "alt-http" 8080
+                          "https" 443 "alt-https" 8888 }])
 
 ;; Define max number of total connections we want in the pool.
 ;; This should be set to at least the sum of all max-per-route values.
@@ -163,19 +190,22 @@
 ;; would each need their own entries. If you are connecting to
 ;; hosts not specified in this map, you'll get a max of 2 connections
 ;; to that host in your connection pool.
-(def max-per-route { "www.google.com" 5 "www.yahoo.com" 5 "www.bing.com" 5 })
+(def max-per-route { "www.google.com" 5 "www.yahoo.com" 6 "www.bing.com" 7 })
 
 
-;; (deftest test-connection-manager
-;;   (let [conn-manager (async/connection-manager
-;;                       {:worker-threads 2
-;;                        :hostname-verifier (async/allow-all-hostname-verifier)
-;;                        :time-to-live 6000
-;;                        :client-options default-client-opts
-;;                        :max-total-connections max-total-conns
-;;                        :max-per-route max-per-route})]
-;;     (are [x y] (= x y))))
-
+;; Ideally, this would test whether the connection pool was set up with
+;; all of the settings we specified. Unfortunately, the Apache libs don't
+;; provide APIs for getting much info out of the pool.
+(deftest test-connection-manager
+  (let [conn-manager (async/connection-manager
+                      {:worker-threads 2
+                       :time-to-live 6000
+                       :client-options default-client-opts
+                       :max-total-connections max-total-conns
+                       :max-per-route max-per-route})]
+    (is (instance?
+         org.apache.http.impl.nio.conn.PoolingClientConnectionManager
+         conn-manager))))
 
 
 (clojure.test/run-tests)
