@@ -1,6 +1,7 @@
 (ns tests
   (:refer-clojure)
   (:require [com.twinql.clojure.async-client :as async])
+  (:require [com.twinql.clojure.http :as http])
   (:require [clojure.contrib.io :as io])
   (:use clojure.test)
   (:import
@@ -139,9 +140,9 @@
        :connection-timeout 1000         ;; in ms
        :cookie-policy
        org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
-       :default-proxy (http/http-host
-                       :host sstj.config/*proxy-host*
-                       :port sstj.config/*proxy-port*)
+       ;;:default-proxy (http/http-host
+       ;;                :host sstj.config/*proxy-host*
+       ;;                :port sstj.config/*proxy-port*)
        :user-agent "Clojure-Apache HTTPS"
        :use-expect-continue false       ;; incompatible with squid/proxy
        :tcp-nodelay true                ;; use more bandwidth to lower latency
@@ -165,15 +166,15 @@
 (def max-per-route { "www.google.com" 5 "www.yahoo.com" 5 "www.bing.com" 5 })
 
 
-(deftest test-connection-manager
-  (let [conn-manager (async/connection-manager
-                      {:worker-threads 2
-                       :hostname-verifier (async/allow-all-hostname-verifier)
-                       :time-to-live 6000
-                       :client-options default-client-opts
-                       :max-total-connections max-total-conns
-                       :max-per-route max-per-route})]
-    (are [x y] (= x y)
+;; (deftest test-connection-manager
+;;   (let [conn-manager (async/connection-manager
+;;                       {:worker-threads 2
+;;                        :hostname-verifier (async/allow-all-hostname-verifier)
+;;                        :time-to-live 6000
+;;                        :client-options default-client-opts
+;;                        :max-total-connections max-total-conns
+;;                        :max-per-route max-per-route})]
+;;     (are [x y] (= x y))))
 
 
 
