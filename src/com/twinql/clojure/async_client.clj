@@ -70,19 +70,16 @@
   [on-complete on-cancel on-fail latch]
   org.apache.http.nio.concurrent.FutureCallback
   (completed [this response]
-             (println "Running completed callback")
              (try
                ((:on-complete this) response)
                (finally
                 (. latch countDown))))
   (cancelled [this]
-             (println "Running cancelled callback")
              (try
                (:on-cancel this)
                (finally
                 (. latch countDown))))
   (failed    [this ex]
-             (println "Running failed callback")
              (try
                ((:on-fail this) ex)
                (finally
@@ -443,23 +440,51 @@
 
     request))
 
+(defn run!
+  "Executes a batch of HTTP requests, calling the specified callback at the
+   end of each request.
 
+   Param client is an HTTP client. Param request-seq is a seq of http request
+   objects. These include HttpDelete, HttpGet, HttpHead, HttpOptions, HttpPost
+   and HttpPut.
 
+   Param callback is an instance of HttpCallback. See the documentation for
+   for async-client/HttpCallback."
+  [requests & {:keys [client conn-mgr on-success on-cancel on-fail]
+               :or {conn-mgr (connection-manager {})
+                    client (http-client conn-mgr)
+                    on-success (fn [& _])
+                    on-cancel (fn [& _])
+                    on-fail (fn [& _])}
+               :as opts}]
+  (let [latch (countdown-latch (count requests))]
+    (. client start)
+    (try
+      (doseq [request requests]
+        (let [cb (HttpCallback. (or (:on-success request) on-success)
+                                (or (:on-cancel request) on-cancel)
+                                (or (:on-fail request) on-fail)
+                                latch)
+              r (build-request request)]
+          (. client execute r cb)))
+      (. latch await)
+      (finally
+       (. client shutdown)))))
+;; (run-gets)
 
 ;;(comment
   ;; Sample usage
 
   (defn on-success [response]
-    ;;(io/spit "___output___.html"
-    ;;         (io/slurp* (.. response getEntity getContent)))
-    ;;(println (.. response getRequestLine))
-    (println "STATUS")
-    (println (response-status response))
-    (println "HEADERS")
-    (println (response-headers response))
-    (println "BODY")
-    (println (response-body response))
-    "OK")
+    (println "generic success callback"))
+
+    ;; (println "STATUS")
+    ;; (println (response-status response))
+    ;; (println "HEADERS")
+    ;; (println (response-headers response))
+    ;; (println "BODY")
+    ;; (println (response-body response)
+
   (defn on-cancel [] (println "Request cancelled"))
   (defn on-fail [ex] (println (str "Request Error: " (.getMessage ex))))
 
@@ -476,17 +501,18 @@
                         "aq" "f"
                         "aqi" ""
                         "aql" ""
-                        "oq=" nil}}])
+                        "oq=" nil}
+         :on-success (fn [resp] (println "got google cb"))}])
 
   (defn run-gets
     ""
     []
     (let [conn-mgr (connection-manager {})]
-      (execute-batch! conn-mgr
-                      (map build-request requests)
-                      on-success
-                      on-cancel
-                      on-fail)))
+      (run! requests
+            :conn-mgr conn-mgr
+            :on-success on-success
+            :on-fail on-fail
+            :on-cancel on-cancel)))
 
 ;; (run-gets)
 ;; *default-opts*
