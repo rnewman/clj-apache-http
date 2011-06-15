@@ -134,19 +134,20 @@
 ;; see clj-apache-http(s) lib
 ;; and http://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/org/apache/http/conn/params/ConnManagerPNames.html
 (def default-client-opts
-     (http/map->params
-      {
-       :so-timeout 6000                 ;; in ms
-       :connection-timeout 1000         ;; in ms
-       :cookie-policy
-       org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
-       ;;:default-proxy (http/http-host
-       ;;                :host sstj.config/*proxy-host*
-       ;;                :port sstj.config/*proxy-port*)
-       :user-agent "Clojure-Apache HTTPS"
-       :use-expect-continue false       ;; incompatible with squid/proxy
-       :tcp-nodelay true                ;; use more bandwidth to lower latency
-       :stale-connection-check false})) ;; saves up to 30ms / req
+     (async/create-http-params
+      (http/map->params
+       {
+        :so-timeout 6000                 ;; in ms
+        :connection-timeout 1000         ;; in ms
+        :cookie-policy
+        org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
+        ;;:default-proxy (http/http-host
+        ;;                :host sstj.config/*proxy-host*
+        ;;                :port sstj.config/*proxy-port*)
+        :user-agent "Clojure-Apache HTTPS"
+        :use-expect-continue false       ;; incompatible with squid/proxy
+        :tcp-nodelay true                ;; use more bandwidth to lower latency
+        :stale-connection-check false}))) ;; saves up to 30ms / req
 
 ;; Scheme names and port numbers. We want to register these in a
 ;; SchemeRegistry so our connection manager knows what's what.
