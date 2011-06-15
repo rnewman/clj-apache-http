@@ -39,8 +39,9 @@
 
 
 
-(defn- #^FileInputStream load-embedded-resource [#^String resource]
+(defn- #^FileInputStream load-embedded-resource
   "Loads a resource embedded in a jar file. Returns a FileInputStream"
+  [#^String resource]
   (let [thr (Thread/currentThread)
         loader (.getContextClassLoader thr)
         resource (.getResource loader resource)]
@@ -49,11 +50,12 @@
 
 
 
-(defn- #^FileInputStream resource-stream [#^String path]
+(defn- #^FileInputStream resource-stream
   "Loads the resource at the specified path, and returns it as a
    FileInputStream. If there is no file at the specified path, and we
    are running as a jar, we'll attempt to load the resource embedded
    within the jar at the specified path."
+  [#^String path]
   (try
     (if (. (jutil/file path) exists)
       (FileInputStream. path)
@@ -66,10 +68,11 @@
 
 
 
-(defn #^X509Certificate load-x509-cert [#^String path]
+(defn #^X509Certificate load-x509-cert
   "Loads an x509 certificate from the specified path, which may be either
    a file system path or a path to an embedded resource in a jar file.
    Returns an instace of java.security.cert.X509Certificate."
+  [#^String path]
   (let [cert-file-instream (resource-stream path)
         cert-factory (CertificateFactory/getInstance "X.509")
         cert (. cert-factory generateCertificate cert-file-instream)]
@@ -80,11 +83,11 @@
 
 
 (defn #^KeyStore load-keystore
-  [#^FileInputStream keystore-stream #^String password]
   "Loads a KeyStore from the specified file. Param keystore-stream is
    an InputStream.  If password is provided, that will be used to unlock
    the KeyStore. Password may be nil. If keystore-stream is nil, this
    returns an empty default KeyStore."
+  [#^FileInputStream keystore-stream #^String password]
   (let [ks (KeyStore/getInstance (KeyStore/getDefaultType))]
     (if keystore-stream
       (if password
@@ -96,9 +99,9 @@
 
 
 (defn #^KeyStore add-x509-cert
-  [#^KeyStore keystore #^String cert-alias #^String certificate]
   "Adds the x509 certificate to the specified keystore. Param cert-alias
    is a name for this cert. Returns KeyStore with the certificate loaded."
+  [#^KeyStore keystore #^String cert-alias #^String certificate]
   (. keystore setCertificateEntry cert-alias certificate)
   keystore)
 
@@ -106,8 +109,8 @@
 
 
 (defn #^KeyManagerFactory key-manager-factory
-  [#^KeyStore keystore #^String password]
   "Returns a key manager for X509 certs using the speficied keystore."
+  [#^KeyStore keystore #^String password]
   (let [kmf (KeyManagerFactory/getInstance "SunX509")]
     (if password
       (. kmf init keystore (. password toCharArray))
@@ -118,10 +121,10 @@
 
 
 (defn #^SSLContext create-ssl-context
-  [#^X509TrustManager trust-manager #^KeyManagerFactory key-manager-factory]
   "Creates a new SSL context with the specified trust manager.
    If trust-manager is nil, we'll use a NaiveTrustManager that
    trusts everyone."
+  [#^X509TrustManager trust-manager #^KeyManagerFactory key-manager-factory]
   (let [ctx (SSLContext/getInstance "TLS")
         sr (new SecureRandom)
         key-managers (. key-manager-factory getKeyManagers)
@@ -137,12 +140,12 @@
 
 
 (defn #^SSLSocketFactory ssl-socket-factory
-  [#^SSLContext ssl-context #^X509HostnameVerifier hostname-verifier]
   "Returns a new SSLSocketFactory with the specified SSL context.
    Param hostname-verifier is an instance of
    org.apache.http.conn.ssl.X509HostnameVerifier -- not the Sun version.
    If hostname-verifier is nil, we'll use a PermissiveHostnameVerifier,
    which always says all hosts are verified."
+  [#^SSLContext ssl-context #^X509HostnameVerifier hostname-verifier]
   (let [sf (SSLSocketFactory. ssl-context)]
     (if hostname-verifier
       (. sf setHostnameVerifier hostname-verifier)
@@ -154,9 +157,9 @@
 
 
 (defn #^SchemeRegistry scheme-registry
-  [#^SSLSocketFactory socket-factory #^Integer port]
   "Creates a scheme registry using the given socket factory to connect
    on the port you specify."
+  [#^SSLSocketFactory socket-factory #^Integer port]
   (let [#^SchemeRegistry scheme-registry (SchemeRegistry.)]
     (.register scheme-registry (Scheme. "https" socket-factory port))
     scheme-registry))

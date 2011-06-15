@@ -129,4 +129,52 @@
        (io/slurp* (.. req3 getEntity getContent))
        sample-body )))
 
+;; These are some default options for the HTTP connections we want to set up.
+;; see clj-apache-http(s) lib
+;; and http://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/org/apache/http/conn/params/ConnManagerPNames.html
+(def default-client-opts
+     (http/map->params
+      {
+       :so-timeout 6000                 ;; in ms
+       :connection-timeout 1000         ;; in ms
+       :cookie-policy
+       org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
+       :default-proxy (http/http-host
+                       :host sstj.config/*proxy-host*
+                       :port sstj.config/*proxy-port*)
+       :user-agent "Clojure-Apache HTTPS"
+       :use-expect-continue false       ;; incompatible with squid/proxy
+       :tcp-nodelay true                ;; use more bandwidth to lower latency
+       :stale-connection-check false})) ;; saves up to 30ms / req
+
+;; Scheme names and port numbers. We want to register these in a
+;; SchemeRegistry so our connection manager knows what's what.
+;; Key is protocol name, value is port number.
+(def connection-schemes [{"http" 80 "https" 443}])
+
+;; Define max number of total connections we want in the pool.
+;; This should be set to at least the sum of all max-per-route values.
+(def max-total-conns 30)
+
+;; Define max number of connections per route. Default is 2.
+;; Key is fully-qualified host name. Value is an integer.
+;; Note that "server1.mycompany.com" and "server2.mycompany.com"
+;; would each need their own entries. If you are connecting to
+;; hosts not specified in this map, you'll get a max of 2 connections
+;; to that host in your connection pool.
+(def max-per-route { "www.google.com" 5 "www.yahoo.com" 5 "www.bing.com" 5 })
+
+
+(deftest test-connection-manager
+  (let [conn-manager (async/connection-manager
+                      {:worker-threads 2
+                       :hostname-verifier (async/allow-all-hostname-verifier)
+                       :time-to-live 6000
+                       :client-options default-client-opts
+                       :max-total-connections max-total-conns
+                       :max-per-route max-per-route})]
+    (are [x y] (= x y)
+
+
+
 (clojure.test/run-tests)

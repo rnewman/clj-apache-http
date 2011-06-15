@@ -50,19 +50,10 @@
   (:require [clojure.contrib.base64 :as base64])
   (:require [clojure.contrib.string :as string]))
 
+
 (def #^AllowAllHostnameVerifier allow-all-hostname-verifier
      (AllowAllHostnameVerifier.))
 
-(def *default-opts*
-     {:worker-threads 1
-      :hostname-verifier allow-all-hostname-verifier
-      :time-to-live 4000
-      :max-total-connections 20
-      :http-params (BasicHttpParams.)} )
-
-(def *default-http-opts* (merge *default-opts* {:scheme "http" :port 80}))
-
-(def *default-https-opts* (merge *default-opts* {:scheme "https" :port 443}))
 
 ;;   "Defines a callback to execute when an async HTTP request completes.
 ;;    Param on-complete is a function to run when request completes. That
@@ -121,6 +112,19 @@
   [#^String name #^int port #^LayeringStrategy strategy]
   (Scheme. name port strategy))
 
+
+(defn #^Scheme default-http-scheme []
+  ;;(Scheme. "http" 80 (SSLLayeringStrategy. (SSLContext/getInstance "http"))))
+  (Scheme. "http" 80 nil))
+
+(defn #^Scheme default-https-scheme []
+  (Scheme. "https" 443 (SSLLayeringStrategy. (SSLContext/getInstance "TLS"))))
+
+(defn #^SchemeRegistry default-scheme-registry []
+  (doto (SchemeRegistry.)
+    (. register (default-http-scheme))
+    (. register (default-https-scheme))))
+
 (defn #^ConnPerRouteBean max-conns-per-route
   "Returns a ConnPerRouteBean describing the maximum number of concurrent
    connections allowed to the specified host. Param conns-per-host-map is
@@ -130,10 +134,10 @@
 
    {\"secure.mysite.com\" 12 \"public.theirhost.com\" 8}"
   [conns-per-host]
-  (let [conn-bean (ConnPerRouteBean.)]
-    (doseq [host (keys conns-per-host)]
-      (. conn-bean setMaxForRoute (HttpHost. host) (get conns-per-host host)))
-    conn-bean))
+    (let [conn-bean (ConnPerRouteBean.)]
+      (doseq [host (keys conns-per-host)]
+        (. conn-bean setMaxForRoute (HttpHost. host) (get conns-per-host host)))
+      conn-bean))
 
 (defn set-conn-mgr-params!
   "Sets the MAX_TOTAL_CONNECTIONS and MAX_CONNECTIONS_PER_ROUTE options on
@@ -157,6 +161,21 @@
       (. registry register scheme))
     registry))
 
+(defn #^BasicHttpParams create-http-params
+  "Returns an HttpParams object with the specified settings. To make your life
+   easier, use com.twinql.clojure.http/map->params to construct a map with
+   friendly param names. For example:
+
+   (create-http-params (http/map->params {:connection-timeout 2000
+                                          :so-timeout 2000
+                                          :tcp-nodelay true }))"
+  [options]
+  (let [http-params (BasicHttpParams.)]
+    (doseq [name (keys options)
+            value (vals options)]
+      (. http-params setParameter name value))))
+
+
 (defn #^PoolingClientConnectionManager pooling-conn-manager
   "Returns a PoolingClientConnectionManager"
   [#^org.apache.http.nio.reactor.ConnectingIOReactor ioreactor
@@ -167,9 +186,20 @@
                                    time-to-live
                                    TimeUnit/MILLISECONDS))
 
-(defn connection-manager
+(def *default-opts*
+     {:worker-threads 1
+      :hostname-verifier allow-all-hostname-verifier
+      :time-to-live 4000
+      :client-options {}
+      :max-total-connections 20
+      :http-params (BasicHttpParams.) })
+
+
+
+(defn #^PoolingClientConnectionManager connection-manager
   "Returns a PoolingClientConnectionManager with the specified options.
-   Param options is a hash-map that may include the following:
+   Param options is a hash-map that may include the following. Any unset
+   vars will default to the value in *default-opts*.
 
    :worker-threads         The number of threads the connection manager may use.
 
@@ -177,38 +207,52 @@
 
    :time-to-live           Connection time-to-live, in milliseconds.
 
+   :client-options         A map of options for the http clients in the pool.
+                           These typically include timeout settings, proxy
+                           settings, and other fine-grained settings. See
+                           the available options in the rename-to var of
+                           http.clj for available settings. See
+                           test/async-client.clj for an example of how to set
+                           up this hash.
+
+   :scheme-registry        An instance of
+                           org.apache.http.nio.conn.scheme.SchemeRegistry
+                           describing how to handle http and https protocols.
+                           You really only need to set this if you are connecting
+                           on non-standard http/https ports, or if you are using
+                           client SSL certificates.
+
    :max-total-connections  The maximum total number of concurrent connections
                            to all hosts.
 
-   :scheme                 Either \"http\" or \"https\"
+   :max-conns-per-route    Param max-conns-per-route is a hash-map specifying
+                           the maximum number of connections to a specific
+                           host. It should be a map like the one below,
+                           which specifies a maximum of 12 simulataneous
+                           connections to secure.mysite.com and a maximum of
+                           8 simultaneous connections to public.theirhost.com:
 
-   :port                   The port on which to connect. Typically 80 for http
-                           and 443 for https.
+                           {\"secure.mysite.com\" 12 \"public.theirhost.com\" 8}
 
-   To make things easy, you can merge your own hash with *default-http-opts*
-   or *default-https-opts*.
+                           Param conns-per-route may be nil, in which case,
+                           the underlying Apache library defaults to 2
+                           connections per route.
 
-   Param conns-per-route is a hash-map specifying the maximum number of
-   connections to a specific host. It should be a map like the one below,
-   which specifies a maximum of 12 simulataneous connections to secure.mysite.com
-   and a maximum of 8 simultaneous connections to public.theirhost.com:
-
-   {\"secure.mysite.com\" 12 \"public.theirhost.com\" 8}
-
-   Param conns-per-route may be nil, in which case, we'll default to 2
-   connections per route.
+   To make things easy, you can merge your own hash with *default-opts*
+   or *default-opts*.
 
    Typically, you want to create a single connection manager with a reasonably
    large pool of connections, then use that manager for all of the http clients
    you create."
-  [options conns-per-route]
-  (let [opts (merge *default-http-opts* (or options {}))
+  [options]
+  (let [opts (merge *default-opts* (or options {}))
         ;; TODO: Fix schemes! We will need an SSL manager!!!
-        scheme (scheme (:scheme opts) (:port opts) nil)
-        registry (scheme-registry [scheme])
+        ;;scheme (scheme (:scheme opts) (:port opts) nil)
+        ;;registry (scheme-registry [scheme])
+        registry (or (:scheme-registry options) (default-scheme-registry))
         http-params (set-conn-mgr-params! (:http-params opts)
                                           (:max-total-connections opts)
-                                          conns-per-route)
+                                          (:max-conns-per-route opts))
         reactor (io-reactor (:worker-threads opts) http-params)]
     (pooling-conn-manager reactor registry (:time-to-live opts))))
 
@@ -430,7 +474,7 @@
   (defn run-gets
     ""
     []
-    (let [conn-mgr (connection-manager {} nil)]
+    (let [conn-mgr (connection-manager {})]
       (execute-batch! conn-mgr
                       (map build-request requests)
                       on-success
@@ -438,6 +482,7 @@
                       on-fail)))
 
 ;; (run-gets)
+;; *default-opts*
 
 ;; (map #(prn %) requests)
 
