@@ -267,8 +267,8 @@
    connection manager. Use the connection-manager function to create one
    instance of a connection manager. Use that one instance for all http
    clients."
-  [conn-manager]
-  (DefaultHttpAsyncClient. conn-manager))
+  [conn-manager http-params]
+  (DefaultHttpAsyncClient. conn-manager http-params))
 
 (defn execute-batch!
   "Executes a batch of HTTP requests, calling the specified callback at the
@@ -280,8 +280,8 @@
 
    Param callback is an instance of HttpCallback. See the documentation for
    for async-client/HttpCallback."
-  [conn-mgr requests on-success on-cancel on-fail]
-  (let [client (http-client conn-mgr)
+  [conn-mgr http-params requests on-success on-cancel on-fail]
+  (let [client (http-client conn-mgr http-params)
         latch (countdown-latch (count requests))
         callback (HttpCallback. on-success on-cancel on-fail latch)]
     (. client start)
