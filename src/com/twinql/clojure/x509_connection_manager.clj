@@ -171,7 +171,7 @@
 (declare *connection-manager*)
 
 
-(defn #^SchemeRegistry init-scheme-registry
+(defn #^SchemeRegistry create-scheme-registry
   "Initializes and returns a SchemeRegistry. Use this if you need a
    SchemeRegistry for some external connection manager or for the
    async-client. See the doc for init-connection-manager."
@@ -240,7 +240,7 @@
    and :certificate-file (and :certificate-password if your client cert
    is password-protected) to load the X509 client certificate."
   [opts]
-  (let [scheme-registry (init-scheme-registry opts)
+  (let [scheme-registry (create-scheme-registry opts)
         http-params (or (:http-params opts) (BasicHttpParams.))]
     (when-not (bound? #'*connection-manager*)
       (if (= (:connection-mgr-type opts) "SingleClientConnManager")
