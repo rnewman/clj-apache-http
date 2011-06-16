@@ -115,7 +115,9 @@
   (Scheme. "http" 80 nil))
 
 (defn #^Scheme default-https-scheme []
-  (Scheme. "https" 443 (SSLLayeringStrategy. (SSLContext/getInstance "TLS"))))
+  (let [ctx (SSLContext/getInstance "SSL")]
+    (.init ctx nil nil nil)
+    (Scheme. "https" 443 (SSLLayeringStrategy. ctx))))
 
 (defn #^SchemeRegistry default-scheme-registry []
   (doto (SchemeRegistry.)
