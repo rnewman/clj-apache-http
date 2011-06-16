@@ -206,7 +206,7 @@
 
    :time-to-live           Connection time-to-live, in milliseconds.
 
-   :client-options         A map of options for the http clients in the pool.
+   :http-params            A map of options for the http clients in the pool.
                            These typically include timeout settings, proxy
                            settings, and other fine-grained settings. See
                            the available options in the rename-to var of
@@ -215,12 +215,11 @@
                            up this hash. You can create these client params
                            like this:
 
-                           (create-http-params
                              (com.twinql.clojure.http/map->params
                                {
                                    :so-timeout 2000           ;; milliseconds
                                    :connection-timeout 1000   ;; milliseconds
-                               }))
+                               })
 
 
    :scheme-registry        An instance of
@@ -255,7 +254,7 @@
   [options]
   (let [opts (merge *default-opts* (or options {}))
         registry (or (:scheme-registry options) (default-scheme-registry))
-        http-params (create-http-params (:client-options opts))
+        http-params (create-http-params (:http-params opts))
         http-params (set-conn-mgr-params! http-params
                                           (:max-total-connections opts)
                                           (:max-conns-per-route opts))
