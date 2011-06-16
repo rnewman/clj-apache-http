@@ -134,7 +134,6 @@
 ;; see clj-apache-http(s) lib
 ;; and http://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/org/apache/http/conn/params/ConnManagerPNames.html
 (def default-client-opts
-     (async/create-http-params
       (http/map->params
        {
         :so-timeout 1250                  ;; in ms
@@ -147,30 +146,30 @@
         :user-agent "Clojure-Apache HTTPS"
         :use-expect-continue false        ;; incompatible with squid/proxy
         :tcp-nodelay true                 ;; use more bandwidth to lower latency
-        :stale-connection-check false}))) ;; saves up to 30ms / req
+        :stale-connection-check false}))  ;; saves up to 30ms / req
 
 
 ;; Make sure the call to create-http-params above produced a
 ;; BasicHttpParams object with the settings we requested.
 (deftest test-http-params
-  (is (instance? org.apache.http.params.BasicHttpParams default-client-opts))
-  (is (= 1250 (. default-client-opts getParameter
-                 org.apache.http.params.CoreConnectionPNames/SO_TIMEOUT)))
-  (is (= 2112 (. default-client-opts getParameter
-                  org.apache.http.params.CoreConnectionPNames/CONNECTION_TIMEOUT)))
-  (is (= org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
-         (. default-client-opts getParameter
-            org.apache.http.client.params.ClientPNames/COOKIE_POLICY)))
-  (is (= "Clojure-Apache HTTPS"
-         (. default-client-opts getParameter
-            org.apache.http.params.CoreProtocolPNames/USER_AGENT)))
-  (is (= false (. default-client-opts getParameter
-                  org.apache.http.params.CoreProtocolPNames/USE_EXPECT_CONTINUE)))
-  (is (= true (. default-client-opts getParameter
-                 org.apache.http.params.CoreConnectionPNames/TCP_NODELAY)))
-  (is (= false (. default-client-opts getParameter
-                  org.apache.http.params.CoreConnectionPNames/STALE_CONNECTION_CHECK))))
-
+  (let [params (async/create-http-params default-client-opts)]
+    (is (instance? org.apache.http.params.SyncBasicHttpParams params))
+    (is (= 1250 (. params getParameter
+                   org.apache.http.params.CoreConnectionPNames/SO_TIMEOUT)))
+    (is (= 2112 (. params getParameter
+                   org.apache.http.params.CoreConnectionPNames/CONNECTION_TIMEOUT)))
+    (is (= org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
+           (. params getParameter
+              org.apache.http.client.params.ClientPNames/COOKIE_POLICY)))
+    (is (= "Clojure-Apache HTTPS"
+           (. params getParameter
+              org.apache.http.params.CoreProtocolPNames/USER_AGENT)))
+    (is (= false (. params getParameter
+                    org.apache.http.params.CoreProtocolPNames/USE_EXPECT_CONTINUE)))
+    (is (= true (. params getParameter
+                   org.apache.http.params.CoreConnectionPNames/TCP_NODELAY)))
+    (is (= false (. params getParameter
+                    org.apache.http.params.CoreConnectionPNames/STALE_CONNECTION_CHECK)))))
 
 
 
@@ -206,6 +205,5 @@
     (is (instance?
          org.apache.http.impl.nio.conn.PoolingClientConnectionManager
          conn-manager))))
-
 
 (clojure.test/run-tests)

@@ -23,7 +23,8 @@
             HttpPost
             HttpPut))
   (:import (org.apache.http.params
-            BasicHttpParams))
+            BasicHttpParams
+            SyncBasicHttpParams))
   (:import (org.apache.http.conn.params
             ConnManagerPNames
             ConnPerRouteBean))
@@ -48,7 +49,8 @@
             DefaultConnectingIOReactor))
   (:require [clojure.contrib.io :as io])
   (:require [clojure.contrib.base64 :as base64])
-  (:require [clojure.contrib.string :as string]))
+  (:require [clojure.contrib.string :as string])
+  (:require [com.twinql.clojure.http :as http]))
 
 
 (def #^AllowAllHostnameVerifier allow-all-hostname-verifier
@@ -169,8 +171,14 @@
                                           :so-timeout 2000
                                           :tcp-nodelay true }))"
   [options]
-  (let [http-params (BasicHttpParams.)]
-    (doseq [[name value] (map identity options)]
+  (let [http-params (SyncBasicHttpParams.)]
+
+    ;; We MUST call setDefaultHttpParams before setting our own params,
+    ;; or else the entire client blows up. It would be nice if Apache
+    ;; would document this fact. To see what these default settings are,
+    ;; go to http://grepcode.com/file/repo1.maven.org/maven2/org.apache.httpcomponents/httpasyncclient/4.0-alpha1/org/apache/http/impl/nio/client/DefaultHttpAsyncClient.java#DefaultHttpAsyncClient.setDefaultHttpParams%28org.apache.http.params.HttpParams%29
+    (DefaultHttpAsyncClient/setDefaultHttpParams http-params)
+    (doseq [[name value] (map identity (http/map->params options))]
       (. http-params setParameter name value))
     http-params))
 
@@ -189,9 +197,8 @@
      {:worker-threads 1
       :hostname-verifier allow-all-hostname-verifier
       :time-to-live 4000
-      :client-options {}
       :max-total-connections 20
-      :http-params (BasicHttpParams.) })
+      :http-params {}})
 
 
 
@@ -215,11 +222,10 @@
                            up this hash. You can create these client params
                            like this:
 
-                             (com.twinql.clojure.http/map->params
-                               {
-                                   :so-timeout 2000           ;; milliseconds
-                                   :connection-timeout 1000   ;; milliseconds
-                               })
+                           {
+                               :so-timeout 2000           ;; milliseconds
+                               :connection-timeout 1000   ;; milliseconds
+                           }
 
 
    :scheme-registry        An instance of
@@ -266,9 +272,12 @@
   "Returns an instance of DefaultHttpAsyncClient that uses the specified
    connection manager. Use the connection-manager function to create one
    instance of a connection manager. Use that one instance for all http
-   clients."
+   clients.
+
+   Param http params should be a map like {:so-timeout 2000 :timeout 1500}"
   [conn-manager http-params]
-  (DefaultHttpAsyncClient. conn-manager http-params))
+  (DefaultHttpAsyncClient. conn-manager (create-http-params http-params)))
+
 
 (defn execute-batch!
   "Executes a batch of HTTP requests, calling the specified callback at the
@@ -504,7 +513,14 @@
     ""
     []
     (let [conn-mgr (connection-manager *default-opts*)
-          client (http-client conn-mgr)]
+          http-params {:so-timeout 2000
+                       :connection-timeout 2000
+                       :cookie-policy org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
+                       :user-agent "Clojure-Apache HTTPS"
+                       :use-expect-continue false        ;; incompatible with squid/proxy
+                       :tcp-nodelay true                 ;; use more bandwidth to lower latency
+                       :stale-connection-check false}
+          client (http-client conn-mgr http-params)]
       (.start client)
       (try
         (run! requests
