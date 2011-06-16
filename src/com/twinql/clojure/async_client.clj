@@ -168,9 +168,9 @@
                                           :tcp-nodelay true }))"
   [options]
   (let [http-params (BasicHttpParams.)]
-    (doseq [name (keys options)
-            value (vals options)]
-      (. http-params setParameter name value))))
+    (doseq [[name value] (map identity options)]
+      (. http-params setParameter name value))
+    http-params))
 
 
 (defn #^PoolingClientConnectionManager pooling-conn-manager
@@ -210,7 +210,16 @@
                            the available options in the rename-to var of
                            http.clj for available settings. See
                            test/async-client.clj for an example of how to set
-                           up this hash.
+                           up this hash. You can create these client params
+                           like this:
+
+                           (create-http-params
+                             (com.twinql.clojure.http/map->params
+                               {
+                                   :so-timeout 2000           ;; milliseconds
+                                   :connection-timeout 1000   ;; milliseconds
+                               }))
+
 
    :scheme-registry        An instance of
                            org.apache.http.nio.conn.scheme.SchemeRegistry
@@ -243,11 +252,9 @@
    you create."
   [options]
   (let [opts (merge *default-opts* (or options {}))
-        ;; TODO: Fix schemes! We will need an SSL manager!!!
-        ;;scheme (scheme (:scheme opts) (:port opts) nil)
-        ;;registry (scheme-registry [scheme])
         registry (or (:scheme-registry options) (default-scheme-registry))
-        http-params (set-conn-mgr-params! (:http-params opts)
+        http-params (create-http-params (:client-options opts))
+        http-params (set-conn-mgr-params! http-params
                                           (:max-total-connections opts)
                                           (:max-conns-per-route opts))
         reactor (io-reactor (:worker-threads opts) http-params)]
@@ -443,15 +450,12 @@
 
    Param callback is an instance of HttpCallback. See the documentation for
    for async-client/HttpCallback."
-  [requests & {:keys [client conn-mgr on-success on-cancel on-fail]
-               :or {conn-mgr (connection-manager {})
-                    client (http-client conn-mgr)
-                    on-success (fn [& _])
+  [requests & {:keys [client on-success on-cancel on-fail]
+               :or {on-success (fn [& _])
                     on-cancel (fn [& _])
                     on-fail (fn [& _])}
                :as opts}]
   (let [latch (countdown-latch (count requests))]
-    (. client start)
     (try
       (doseq [request requests]
         (let [cb (HttpCallback. (or (:on-success request) on-success)
@@ -460,9 +464,7 @@
                                 latch)
               r (build-request request)]
           (. client execute r cb)))
-      (. latch await)
-      (finally
-       (. client shutdown)))))
+      (. latch await))))
 ;; (run-gets)
 
 ;;(comment
@@ -500,12 +502,21 @@
   (defn run-gets
     ""
     []
-    (let [conn-mgr (connection-manager {})]
-      (run! requests
-            :conn-mgr conn-mgr
-            :on-success on-success
-            :on-fail on-fail
-            :on-cancel on-cancel)))
+    (let [conn-mgr (connection-manager *default-opts*)
+          client (http-client conn-mgr)]
+      (.start client)
+      (try
+        (run! requests
+              :client client
+              :on-success on-success
+              :on-fail on-fail
+              :on-cancel on-cancel)
+        (run! requests
+              :client client
+              :on-success on-success
+              :on-fail on-fail
+              :on-cancel on-cancel)
+        (finally (.shutdown client)))))
 
 ;; (run-gets)
 ;; *default-opts*
