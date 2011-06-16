@@ -450,15 +450,12 @@
 
    Param callback is an instance of HttpCallback. See the documentation for
    for async-client/HttpCallback."
-  [requests & {:keys [client conn-mgr on-success on-cancel on-fail]
-               :or {conn-mgr (connection-manager {})
-                    client (http-client conn-mgr)
-                    on-success (fn [& _])
+  [requests & {:keys [client on-success on-cancel on-fail]
+               :or {on-success (fn [& _])
                     on-cancel (fn [& _])
                     on-fail (fn [& _])}
                :as opts}]
   (let [latch (countdown-latch (count requests))]
-    (. client start)
     (try
       (doseq [request requests]
         (let [cb (HttpCallback. (or (:on-success request) on-success)
@@ -467,9 +464,7 @@
                                 latch)
               r (build-request request)]
           (. client execute r cb)))
-      (. latch await)
-      (finally
-       (. client shutdown)))))
+      (. latch await))))
 ;; (run-gets)
 
 ;;(comment
@@ -507,12 +502,21 @@
   (defn run-gets
     ""
     []
-    (let [conn-mgr (connection-manager {})]
-      (run! requests
-            :conn-mgr conn-mgr
-            :on-success on-success
-            :on-fail on-fail
-            :on-cancel on-cancel)))
+    (let [conn-mgr (connection-manager *default-opts*)
+          client (http-client conn-mgr)]
+      (.start client)
+      (try
+        (run! requests
+              :client client
+              :on-success on-success
+              :on-fail on-fail
+              :on-cancel on-cancel)
+        (run! requests
+              :client client
+              :on-success on-success
+              :on-fail on-fail
+              :on-cancel on-cancel)
+        (finally (.shutdown client)))))
 
 ;; (run-gets)
 ;; *default-opts*
