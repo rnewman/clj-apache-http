@@ -34,23 +34,21 @@
             HttpAsyncClient))
   (:import (org.apache.http.nio.concurrent
             FutureCallback))
-  (:import (org.apache.http.nio.conn.scheme
-            Scheme
-            SchemeRegistry))
   (:import (org.apache.http.nio.conn.ssl
             SSLLayeringStrategy))
   (:import (org.apache.http.conn.ssl
             X509HostnameVerifier
             AllowAllHostnameVerifier
             StrictHostnameVerifier))
-  (:import (org.apache.http.nio.conn.ssl
-            SSLLayeringStrategy))
   (:import (org.apache.http.impl.nio.reactor
             DefaultConnectingIOReactor))
   (:require [clojure.contrib.io :as io])
   (:require [clojure.contrib.base64 :as base64])
   (:require [clojure.contrib.string :as string])
-  (:require [com.twinql.clojure.http :as http]))
+  (:require [com.twinql.clojure.http :as http])
+
+  (:require [com.twinql.clojure.sync-libs :as sync])
+  (:require [com.twinql.clojure.async-libs :as async]))
 
 
 (def #^AllowAllHostnameVerifier allow-all-hostname-verifier
@@ -99,32 +97,6 @@
   [#^Integer worker-count #^org.apache.http.params.HttpParams params]
   (DefaultConnectingIOReactor. worker-count params))
 
-(defn #^SSLLayeringStrategy layering-strategy
-  "Returns a new LayeringStrategy for managing SSL connections."
-  [#^SSLContext ssl-context #^X509HostnameVerifier hostname-verifier]
-  (SSLLayeringStrategy. ssl-context hostname-verifier))
-
-(defn #^Scheme scheme
-  "Returns a new org.apache.http.nio.conn.scheme.Scheme. Param name should
-   be \"http\" or \"https\". Param port is the port to connect to on the
-   remote host."
-  [#^String name #^int port #^LayeringStrategy strategy]
-  (Scheme. name port strategy))
-
-
-(defn #^Scheme default-http-scheme []
-  ;;(Scheme. "http" 80 (SSLLayeringStrategy. (SSLContext/getInstance "http"))))
-  (Scheme. "http" 80 nil))
-
-(defn #^Scheme default-https-scheme []
-  (let [ctx (SSLContext/getInstance "SSL")]
-    (.init ctx nil nil nil)
-    (Scheme. "https" 443 (SSLLayeringStrategy. ctx))))
-
-(defn #^SchemeRegistry default-scheme-registry []
-  (doto (SchemeRegistry.)
-    (. register (default-http-scheme))
-    (. register (default-https-scheme))))
 
 (defn #^ConnPerRouteBean max-conns-per-route
   "Returns a ConnPerRouteBean describing the maximum number of concurrent
@@ -152,15 +124,6 @@
                                                     conns-per-route)))
   http-params)
 
-
-(defn #^SchemeRegistry scheme-registry
-  "Returns a new instance of a non-blocking Apache SchemeRegistry. Param
-   schemes is a seq of schemes to register."
-  [schemes]
-  (let [registry (SchemeRegistry.)]
-    (doseq [scheme schemes]
-      (. registry register scheme))
-    registry))
 
 (defn #^BasicHttpParams create-http-params
   "Returns an HttpParams object with the specified settings. To make your life
@@ -231,9 +194,12 @@
    :scheme-registry        An instance of
                            org.apache.http.nio.conn.scheme.SchemeRegistry
                            describing how to handle http and https protocols.
-                           You really only need to set this if you are connecting
-                           on non-standard http/https ports, or if you are using
-                           client SSL certificates.
+                           You really only need to set this if you are
+                           connecting on non-standard http/https ports, or if
+                           you are using client SSL certificates. If you leave
+                           this nil, the client will use a default scheme
+                           registry that knows how to communicate via http
+                           on port 80 and https on port 443.
 
    :max-total-connections  The maximum total number of concurrent connections
                            to all hosts.
@@ -259,7 +225,8 @@
    you create."
   [options]
   (let [opts (merge *default-opts* (or options {}))
-        registry (or (:scheme-registry options) (default-scheme-registry))
+        registry (or (:scheme-registry options)
+                     (async/default-scheme-registry))
         http-params (create-http-params (:http-params opts))
         http-params (set-conn-mgr-params! http-params
                                           (:max-total-connections opts)
@@ -304,7 +271,6 @@
             (.printStackTrace ex))))
       (. latch await)
       (finally (. client shutdown)))))
-      ;;(. client shutdown)
 
 
 
@@ -475,10 +441,9 @@
               r (build-request request)]
           (. client execute r cb)))
       (. latch await))))
-;; (run-gets)
 
-;;(comment
-  ;; Sample usage
+
+;; ------------------ TEST CODE FROM HERE DOWN ---------------------------
 
   (defn on-success [response]
     (println "generic success callback"))
@@ -517,8 +482,8 @@
                        :connection-timeout 2000
                        :cookie-policy org.apache.http.client.params.CookiePolicy/IGNORE_COOKIES
                        :user-agent "Clojure-Apache HTTPS"
-                       :use-expect-continue false        ;; incompatible with squid/proxy
-                       :tcp-nodelay true                 ;; use more bandwidth to lower latency
+                       :use-expect-continue false
+                       :tcp-nodelay true
                        :stale-connection-check false}
           client (http-client conn-mgr http-params)]
       (.start client)
@@ -534,11 +499,4 @@
               :on-fail on-fail
               :on-cancel on-cancel)
         (finally (.shutdown client)))))
-
-;; (run-gets)
-;; *default-opts*
-
-;; (map #(prn %) requests)
-
-;;  )
 

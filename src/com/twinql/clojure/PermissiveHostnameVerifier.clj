@@ -21,13 +21,19 @@
 
 (defn -verify
   [#^PermissiveHostnameVerifier this #^String host #^SSLSocket socket]
-  "Always returns null")
+  "Always returns null"
+  (println "Called first version")
+  nil)
 
 (defn -verify
   [#^PermissiveHostnameVerifier this #^String host
    #^"[String;" cns #^"[String;" subjectAlts]
-  "Always returns null")
+  "Always returns null"
+  (println "Called second version")
+  nil)
 
 (defn -verify
   [#^PermissiveHostnameVerifier this #^String host #^X509Certificate cert]
-  "Always returns null")
+  "Always returns null"
+  (println "Called third version")
+  nil)

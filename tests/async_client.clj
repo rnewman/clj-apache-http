@@ -1,6 +1,7 @@
 (ns tests
   (:refer-clojure)
   (:require [com.twinql.clojure.async-client :as async])
+  (:require [com.twinql.clojure.async-libs :as async-libs])
   (:require [com.twinql.clojure.http :as http])
   (:require [clojure.contrib.io :as io])
   (:use clojure.test)
@@ -201,7 +202,8 @@
                        :time-to-live 6000
                        :client-options default-client-opts
                        :max-total-connections max-total-conns
-                       :max-per-route max-per-route})]
+                       :max-per-route max-per-route
+                       :scheme-registry (async-libs/default-scheme-registry)})]
     (is (instance?
          org.apache.http.impl.nio.conn.PoolingClientConnectionManager
          conn-manager))))

@@ -1,8 +1,9 @@
 (ns com.twinql.clojure.x509-connection-manager
   (:require [com.twinql.clojure.http :as http])
   (:require [com.twinql.clojure.NaiveTrustManager :as trust-mgr])
-  (:require [com.twinql.clojure.PermissiveHostnameVerifier :as verifier])
   (:require [clojure.contrib.java-utils :as jutil])
+  (:require [com.twinql.clojure.sync-libs :as sync])
+  (:require [com.twinql.clojure.async-libs :as async])
   (:import
    (java.security
     KeyStore
@@ -24,16 +25,16 @@
     HttpParams)
    (org.apache.http.conn.ssl
     SSLSocketFactory
-    X509HostnameVerifier)
-   (org.apache.http.conn.scheme
-    Scheme
-    SchemeRegistry)
+    X509HostnameVerifier
+    AllowAllHostnameVerifier)
    (org.apache.http.conn
     ClientConnectionManager)
    (org.apache.http.impl.conn.tsccm
     ThreadSafeClientConnManager)
    (org.apache.http.impl.conn
     SingleClientConnManager)
+   (org.apache.http.nio.conn.ssl
+    SSLLayeringStrategy)
    (org.apache.http.entity
     StringEntity)))
 
@@ -143,26 +144,22 @@
   "Returns a new SSLSocketFactory with the specified SSL context.
    Param hostname-verifier is an instance of
    org.apache.http.conn.ssl.X509HostnameVerifier -- not the Sun version.
-   If hostname-verifier is nil, we'll use a PermissiveHostnameVerifier,
+   If hostname-verifier is nil, we'll use an AllowAllHostnameVerifier,
    which always says all hosts are verified."
   [#^SSLContext ssl-context #^X509HostnameVerifier hostname-verifier]
   (let [sf (SSLSocketFactory. ssl-context)]
     (if hostname-verifier
       (. sf setHostnameVerifier hostname-verifier)
       (. sf setHostnameVerifier
-         (new com.twinql.clojure.PermissiveHostnameVerifier)))
+         (AllowAllHostnameVerifier.)))
     sf))
 
 
+(defn #^org.apache.http.nio.conn.ssl.SSLLayeringStrategy layering-strategy
+  "Returns a new LayeringStrategy for managing SSL connections."
+  [#^SSLContext ssl-context #^X509HostnameVerifier hostname-verifier]
+  (SSLLayeringStrategy. ssl-context hostname-verifier))
 
-
-(defn #^SchemeRegistry scheme-registry
-  "Creates a scheme registry using the given socket factory to connect
-   on the port you specify."
-  [#^SSLSocketFactory socket-factory #^Integer port]
-  (let [#^SchemeRegistry scheme-registry (SchemeRegistry.)]
-    (.register scheme-registry (Scheme. "https" socket-factory port))
-    scheme-registry))
 
 
 ;; This is the connection you pass to the http get/post function.
@@ -171,8 +168,9 @@
 (declare *connection-manager*)
 
 
-(defn #^SchemeRegistry create-scheme-registry
-  "Initializes and returns a SchemeRegistry. Use this if you need a
+(defn #^org.apache.http.conn.scheme.SchemeRegistry create-scheme-registry
+  "Initializes and returns a SchemeRegistry fo use with the synchronous
+   http connection manager and client. Use this if you need a
    SchemeRegistry for some external connection manager or for the
    async-client. See the doc for init-connection-manager."
   [opts]
@@ -190,7 +188,30 @@
         port (or (:port opts) 443)
         ctx (create-ssl-context (:trust-managers opts) key-mgr-factory)
         socket-factory (ssl-socket-factory ctx (:hostname-verifier opts))]
-    (scheme-registry socket-factory port)))
+    (sync/scheme-registry socket-factory port)))
+
+
+(defn #^org.apache.http.nio.conn.scheme.SchemeRegistry
+  create-async-scheme-registry
+  "Initializes and returns a SchemeRegistry the async-client."
+  [opts]
+  (let [initial-keystore (load-keystore
+                          (resource-stream (:keystore-file opts))
+                          (:keystore-password opts))
+        keystore-with-cert (add-x509-cert
+                            initial-keystore
+                            (:certificate-alias opts)
+                            (load-x509-cert (:certificate-file opts)))
+        key-mgr-factory (key-manager-factory
+                         keystore-with-cert
+                         (:keystore-password opts))
+        hostname-verifier (or (:hostname-verifier opts)
+                              (AllowAllHostnameVerifier.))
+        port (or (:port opts) 443)
+        ctx (create-ssl-context (:trust-managers opts) key-mgr-factory)
+        ssl-layering-strategy (layering-strategy ctx hostname-verifier)
+        socket-factory (ssl-socket-factory ctx (:hostname-verifier opts))]
+    (async/scheme-registry socket-factory port ssl-layering-strategy)))
 
 
 
@@ -217,7 +238,7 @@
    :hostname-verifier [optional] An implementation of
    org.apache.http.conn.ssl.X509HostnameVerifier for verifying the hostname
    of the remote server during the SSL handshake. If you omit this option,
-   the connection will use a PermissiveHostnameVerifier, which does not
+   the connection will use an AllowAllHostnameVerifier, which does not
    actually verify the host. It just blindly accepts that the host is who
    it says it is. This is convenient, but not safe.
 
