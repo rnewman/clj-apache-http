@@ -125,7 +125,7 @@
   http-params)
 
 
-(defn #^BasicHttpParams create-http-params
+(defn #^SyncBasicHttpParams create-http-params
   "Returns an HttpParams object with the specified settings. To make your life
    easier, use com.twinql.clojure.http/map->params to construct a map with
    friendly param names. For example:
