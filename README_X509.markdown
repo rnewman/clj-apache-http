@@ -14,13 +14,12 @@ to establish http connections that use client certificates.
 
 # Building #
 
-Before you start using this code, compile the NaiveTrustManager and the 
-PermissiveHostnameVerifier by running these commands from the top-level
-project directory:
+Before you start using this code, you may have to compile the 
+NaiveTrustManager. You can do that by running the following command from the 
+top-level project directory:
 
 `lein compile com.twinql.clojure.NaiveTrustManager`
 
-`lein compile com.twinql.clojure.PermissiveHostnameVerifier`
 
 # Usage #
 
@@ -73,7 +72,7 @@ all certificate authorities.
 
 The hostname-verifier paramater should be an instance of 
 org.apache.http.conn.ssl.X509HostnameVerifier, or nil. If it's nil, the 
-x509-connection-manager will use a PermissiveHostnameVerifier that 
+x509-connection-manager will use Apache's AllowAllHostnameVerifier that 
 blindly verifies all hosts. That is, it will tell the Java runtime that
 the remote host is who it says it is, without actually taking any steps
 to verify the claims.
