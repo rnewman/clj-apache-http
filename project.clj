@@ -1,5 +1,5 @@
-(defproject diamondap/clj-apache-https "1.0.10"
-  :description "Clojure HTTP library using the Apache HttpClient. Based on clj-apache-http, but includes support for SSL client certificates. Version 1.0.3 include alpha support for async client. The async library is currently unstable, and the APIs for that piece are in flux!"
+(defproject diamondap/clj-apache-https "1.0.11"
+  :description "Clojure HTTP library using the Apache HttpClient. Based on clj-apache-http, but includes support for SSL client certificates and async client."
 
   :dependencies [[org.clojure/clojure "1.2.0"]
                  [org.clojure/clojure-contrib "1.2.0"]
