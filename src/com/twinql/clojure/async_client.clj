@@ -28,6 +28,8 @@
   (:import (org.apache.http.conn.params
             ConnManagerPNames
             ConnPerRouteBean))
+  (:import (org.apache.http.conn.routing
+            HttpRoute))
   (:import (org.apache.http.impl.nio.client
             DefaultHttpAsyncClient))
   (:import (org.apache.http.nio.client
@@ -109,7 +111,8 @@
   [conns-per-host]
     (let [conn-bean (ConnPerRouteBean.)]
       (doseq [host (keys conns-per-host)]
-        (. conn-bean setMaxForRoute (HttpHost. host) (get conns-per-host host)))
+        (. conn-bean setMaxForRoute (HttpRoute. (HttpHost. host))
+           (get conns-per-host host)))
       conn-bean))
 
 (defn set-conn-mgr-params!
