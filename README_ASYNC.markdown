@@ -38,6 +38,17 @@ manager.
                        :use-expect-continue false 
                        :tcp-nodelay true 
                        :stale-connection-check false })
+
+    (defn on-internal-error
+      "Log internal errors from the async client's IOReactor. If we don't 
+       provide a handler, the client blows up and can no longer service 
+       requests. Handler should return true to continue servicing requests, 
+       or false to stop. Returning false stops the IOReactor, and all 
+       subsequent requests will fail."
+      [exception]
+      (prn "*** Caught exception inside IOReactor ***")
+  	  (prn exception)
+  	  true)
     
     
     (def conn-mgr (async/connection-manager
@@ -45,6 +56,7 @@ manager.
 	   				{ :worker-threads 3
 	    			  :time-to-live 4000
                       :max-total-connections 50
+					  :internal-exception-handler on-internal-error
                       :max-per-route { "yahoo.com"              10 
                                        "hotelicopter.com"       15
                                        "google.com"             15 

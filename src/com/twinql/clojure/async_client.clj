@@ -2,6 +2,7 @@
   (:import (java.util.concurrent
             CountDownLatch
             TimeUnit))
+  (:import (java.io IOException))
   (:import (javax.net.ssl
             SSLContext))
   (:import (java.net
@@ -87,6 +88,12 @@
                (finally
                 (. latch countDown)))))
 
+(defrecord InternalExceptionHandler
+  [fn]
+  org.apache.http.nio.reactor.IOReactorExceptionHandler
+  (#^boolean handle [this #^IOException ex] (fn ex))
+  (#^boolean handle [this #^RuntimeException ex] (fn ex)))
+
 (defn #^CountDownLatch countdown-latch
   "Returns a CountdownLatch for managing async IO. Param num-requests must
    specify the number of http requests that the callback will be handling."
@@ -96,8 +103,14 @@
 (defn #^DefaultConnectingIOReactor io-reactor
   "Returns a new instance of
    org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor"
-  [#^Integer worker-count #^org.apache.http.params.HttpParams params]
-  (DefaultConnectingIOReactor. worker-count params))
+  [#^Integer worker-count
+   #^IOReactorExceptionHandler internal-exception-handler
+   #^org.apache.http.params.HttpParams params]
+  (let [reactor (DefaultConnectingIOReactor. worker-count params)]
+    (if (not (nil? internal-exception-handler))
+      (. reactor setExceptionHandler
+         (InternalExceptionHandler. internal-exception-handler)))
+    reactor))
 
 
 (defn #^ConnPerRouteBean max-conns-per-route
@@ -193,6 +206,19 @@
                                :connection-timeout 1000   ;; milliseconds
                            }
 
+   :internal-exception-handler
+                          A function for handling exceptions within the
+                          IOReactor. The function should take one parameter,
+                          which is a Java Exception object. It should return
+                          true if it's OK for the reactor to continue
+                          processing requests after the exception, or false
+                          to shut down the reactor. If you don't supply this,
+                          the reactor will shut down on all IO and runtime
+                          exceptions. An example exception handler that logs
+                          an exception and continues looks like this:
+
+                          (defn log-ex [ex] (prn (. ex getMessage) true))
+
 
    :scheme-registry        An instance of
                            org.apache.http.nio.conn.scheme.SchemeRegistry
@@ -234,7 +260,9 @@
         http-params (set-conn-mgr-params! http-params
                                           (:max-total-connections opts)
                                           (:max-conns-per-route opts))
-        reactor (io-reactor (:worker-threads opts) http-params)]
+        reactor (io-reactor (:worker-threads opts)
+                            (:internal-exception-handler opts)
+                            http-params)]
     (pooling-conn-manager reactor registry (:time-to-live opts))))
 
 
