@@ -9,7 +9,7 @@
   <scm>
     <connection>scm:git:git://github.com/diamondap/clj-apache-http.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/diamondap/clj-apache-http.git</developerConnection>
-    <tag>6c94b7f0f565122bdf2674965d02c211acb86f35</tag>
+    <tag>013ef9b7957cae09fac6eeb594a00a4f56002a08</tag>
     <url>https://github.com/diamondap/clj-apache-http</url>
   </scm>
   <build>
