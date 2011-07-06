@@ -76,17 +76,20 @@
              (try
                ((:on-complete this) response)
                (finally
-                (. latch countDown))))
+                (if latch
+                  (. latch countDown)))))
   (cancelled [this]
              (try
                (:on-cancel this)
                (finally
-                (. latch countDown))))
+                (if latch
+                  (. latch countDown)))))
   (failed    [this ex]
              (try
                ((:on-fail this) ex)
                (finally
-                (. latch countDown)))))
+                (if latch
+                  (. latch countDown))))))
 
 (defrecord InternalExceptionHandler
   [fn]
@@ -462,16 +465,14 @@
                     on-cancel (fn [& _])
                     on-fail (fn [& _])}
                :as opts}]
-  (let [latch (countdown-latch (count requests))]
-    (try
-      (doseq [request requests]
-        (let [cb (HttpCallback. (or (:on-success request) on-success)
-                                (or (:on-cancel request) on-cancel)
-                                (or (:on-fail request) on-fail)
-                                latch)
-              r (build-request request)]
-          (. client execute r cb)))
-      (. latch await))))
+  (try
+    (doseq [request requests]
+      (let [cb (HttpCallback. (or (:on-success request) on-success)
+                              (or (:on-cancel request) on-cancel)
+                              (or (:on-fail request) on-fail)
+                              nil)
+            r (build-request request)]
+        (. client execute r cb)))))
 
 
 ;; ------------------ TEST CODE FROM HERE DOWN ---------------------------
