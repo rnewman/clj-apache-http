@@ -149,3 +149,14 @@ and x509_connection_manager.clj.
 Also, see the readme documents for the synchronous HTTP client and for the
 X509 certification manager.
 
+# Notes #
+
+This Clojure library is currently using version 4.0-alpha2 of the Apache 
+HttpAsyncClient library, which does not yet pass HTTP timeouts up to any
+event handlers. This means that if your HTTP request times out because the
+server did not respond before :so-timeout milliseconds, your on-fail event
+handler will not be called.
+
+There is a ticket open on this issue with Apache, and it should (should!) be 
+fixed in an upcoming release.
+
