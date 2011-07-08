@@ -97,6 +97,11 @@
   (#^boolean handle [this #^IOException ex] (fn ex))
   (#^boolean handle [this #^RuntimeException ex] (fn ex)))
 
+(defrecord KeepAliveStrategy
+  [#^long milliseconds]
+  org.apache.http.conn.ConnectionKeepAliveStrategy
+  (getKeepAliveDuration [this response context] milliseconds))
+
 (defn #^CountDownLatch countdown-latch
   "Returns a CountdownLatch for managing async IO. Param num-requests must
    specify the number of http requests that the callback will be handling."
@@ -161,7 +166,8 @@
     ;; go to http://grepcode.com/file/repo1.maven.org/maven2/org.apache.httpcomponents/httpasyncclient/4.0-alpha1/org/apache/http/impl/nio/client/DefaultHttpAsyncClient.java#DefaultHttpAsyncClient.setDefaultHttpParams%28org.apache.http.params.HttpParams%29
     (DefaultHttpAsyncClient/setDefaultHttpParams http-params)
     (doseq [[name value] (map identity (http/map->params options))]
-      (. http-params setParameter name value))
+      (if (not= name :keep-alive)
+        (. http-params setParameter name value)))
     http-params))
 
 
@@ -275,9 +281,19 @@
    instance of a connection manager. Use that one instance for all http
    clients.
 
-   Param http params should be a map like {:so-timeout 2000 :timeout 1500}"
+   Param http params should be a map like {:so-timeout 2000 :timeout 1500}
+
+   The available options are listed in http.clj. One additional option
+   exists:
+
+   :keep-alive  Time in milliseconds to keep http connections alive."
   [conn-manager http-params]
-  (DefaultHttpAsyncClient. conn-manager (create-http-params http-params)))
+  (let [client (DefaultHttpAsyncClient. conn-manager
+                 (create-http-params http-params))]
+    (if (:keep-alive http-params)
+      (. client setKeepAliveStrategy (KeepAliveStrategy.
+                                      (:keep-alive http-params))))
+    client))
 
 
 (defn execute-batch!
@@ -298,7 +314,6 @@
     (try
       (doseq [request requests]
         (try
-          (prn (str "Requesting " request))
           (. client execute request callback)
           (catch Exception ex
             (println (str "Caught exception " (. ex getMessage)))
@@ -475,17 +490,17 @@
         (. client execute r cb)))))
 
 
-;; ------------------ TEST CODE FROM HERE DOWN ---------------------------
+
+
+(comment
+
+  ;; -------------------------------------------------------------------
+  ;; SAMPLE CODE
+  ;; -------------------------------------------------------------------
 
   (defn on-success [response]
     (println "generic success callback"))
 
-    ;; (println "STATUS")
-    ;; (println (response-status response))
-    ;; (println "HEADERS")
-    ;; (println (response-headers response))
-    ;; (println "BODY")
-    ;; (println (response-body response)
 
   (defn on-cancel [] (println "Request cancelled"))
   (defn on-fail [ex] (println (str "Request Error: " (.getMessage ex))))
@@ -507,7 +522,7 @@
          :on-success (fn [resp] (println "got google cb"))}])
 
   (defn run-gets
-    ""
+    "This is a test method."
     []
     (let [conn-mgr (connection-manager *default-opts*)
           http-params {:so-timeout 2000
@@ -532,3 +547,4 @@
               :on-cancel on-cancel)
         (finally (.shutdown client)))))
 
+  ) ;; End of commented sample code
