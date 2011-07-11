@@ -16,6 +16,8 @@
   (:import
    (javax.net.ssl
     SSLContext)
+   (org.apache.http.nio.reactor
+    IOSession)
    (org.apache.http.conn.ssl
     SSLSocketFactory)
    (org.apache.http.nio.conn.ssl
