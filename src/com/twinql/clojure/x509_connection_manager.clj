@@ -17,6 +17,7 @@
     HttpsURLConnection)
    (java.io
     File
+    InputStream
     FileInputStream
     InputStreamReader
     FileNotFoundException)
@@ -40,8 +41,8 @@
 
 
 
-(defn- #^FileInputStream load-embedded-resource
-  "Loads a resource embedded in a jar file. Returns a FileInputStream"
+(defn- #^InputStream load-embedded-resource
+  "Loads a resource embedded in a jar file. Returns an InputStream"
   [#^String resource]
   (let [thr (Thread/currentThread)
         loader (.getContextClassLoader thr)
@@ -51,9 +52,9 @@
 
 
 
-(defn- #^FileInputStream resource-stream
-  "Loads the resource at the specified path, and returns it as a
-   FileInputStream. If there is no file at the specified path, and we
+(defn- #^InputStream resource-stream
+  "Loads the resource at the specified path, and returns it as an
+   InputStream. If there is no file at the specified path, and we
    are running as a jar, we'll attempt to load the resource embedded
    within the jar at the specified path."
   [#^String path]
