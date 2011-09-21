@@ -12,5 +12,7 @@
   :repositories {"releases" ~(str "file://"
                                   user/local-maven-clone "/releases")
                  "snapshots" ~(str "file://"
-                                   user/local-maven-clone "/snapshots")})
+                                   user/local-maven-clone "/snapshots")
+                 "hotelicopter_snapshots" "https://raw.github.com/g1nn13/maven/master/snapshots"
+                 "hotelicopter_releases" "https://raw.github.com/g1nn13/maven/master/releases"})
 

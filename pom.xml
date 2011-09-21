@@ -3,13 +3,13 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>diamondap</groupId>
   <artifactId>clj-apache-https</artifactId>
-  <version>1.0.14</version>
+  <version>1.0.15-SNAPSHOT</version>
   <name>clj-apache-https</name>
   <description>Clojure HTTP library using the Apache HttpClient. Based on clj-apache-http, but includes support for SSL client certificates and HttpAsyncClient.</description>
   <scm>
     <connection>scm:git:git://github.com/diamondap/clj-apache-http.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/diamondap/clj-apache-http.git</developerConnection>
-    <tag>6d2767ecb05ba72e56f2946e0030de8d0bfdc5eb</tag>
+    <tag>fd5a18a5176e3eea8c520d8ddedf422f7558e4f5</tag>
     <url>https://github.com/diamondap/clj-apache-http</url>
   </scm>
   <build>
@@ -27,6 +27,22 @@
     </testResources>
   </build>
   <repositories>
+    <repository>
+      <id>hotelicopter_releases</id>
+      <url>https://raw.github.com/g1nn13/maven/master/releases</url>
+    </repository>
+    <repository>
+      <id>hotelicopter_snapshots</id>
+      <url>https://raw.github.com/g1nn13/maven/master/snapshots</url>
+    </repository>
+    <repository>
+      <id>snapshots</id>
+      <url>file://file:///Users/colinsteele/Projects/hotelicopter/maven/snapshots</url>
+    </repository>
+    <repository>
+      <id>releases</id>
+      <url>file://file:///Users/colinsteele/Projects/hotelicopter/maven/releases</url>
+    </repository>
     <repository>
       <id>central</id>
       <url>http://repo1.maven.org/maven2</url>
