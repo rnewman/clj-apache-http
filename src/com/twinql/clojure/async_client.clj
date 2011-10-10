@@ -45,9 +45,9 @@
             StrictHostnameVerifier))
   (:import (org.apache.http.impl.nio.reactor
             DefaultConnectingIOReactor))
-  (:require [clojure.contrib.io :as io])
-  (:require [clojure.contrib.base64 :as base64])
-  (:require [clojure.contrib.string :as string])
+  (:import (org.apache.commons.codec.binary
+            Base64))
+  (:require [clojure.string :as string])
   (:require [com.twinql.clojure.http :as http])
 
   (:require [com.twinql.clojure.sync-libs :as sync])
@@ -335,7 +335,7 @@
 
 (defn response-body [response]
   "Returns the body of the response."
-  (io/slurp* (.. response getEntity getContent)))
+  (slurp (.. response getEntity getContent)))
 
 (defn create-request
   "Returns a new instance of a request of the specified method. Param method
@@ -374,12 +374,16 @@
          (interpose "&")
          (apply str))))
 
+(def UTF8 (java.nio.charset.Charset/forName "UTF-8"))
+
+(defn- encode-str [^String s]
+  (String. (Base64/encodeBase64 (.getBytes s "UTF-8") false) UTF8))
 
 (defn get-basic-auth-value
   "Returns the value of the basic auth header."
   [user pwd]
   (str "Basic "
-       (string/chomp (base64/encode-str (str user ":" pwd)))))
+       (string/trim-newline (encode-str (str user ":" pwd)))))
 
 
 (defn add-basic-auth-header!
