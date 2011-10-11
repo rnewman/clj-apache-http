@@ -1,7 +1,7 @@
 (ns com.twinql.clojure.x509-connection-manager
   (:require [com.twinql.clojure.http :as http])
   (:require [com.twinql.clojure.NaiveTrustManager :as trust-mgr])
-  (:require [clojure.contrib.java-utils :as jutil])
+  (:require [clojure.java.io :as io])
   (:require [com.twinql.clojure.sync-libs :as sync])
   (:require [com.twinql.clojure.async-libs :as async])
   (:import
@@ -59,7 +59,7 @@
    within the jar at the specified path."
   [#^String path]
   (try
-    (if (. (jutil/file path) exists)
+    (if (. (io/file path) exists)
       (FileInputStream. path)
       (load-embedded-resource path))
     (catch Exception _ (throw (new FileNotFoundException

@@ -2,8 +2,8 @@
   (:refer-clojure :exclude [get])
   (:use clojure.set)
   (:require
-     [clojure.contrib.io :as io]
-     [clojure.contrib.json :as json])
+     [clojure.java.io :as io]
+     [clojure.data.json :as json])
   (:import 
     (java.lang Exception)
     (java.net URI)
@@ -205,17 +205,17 @@
 
 (defmethod entity-as :string [#^HttpEntity entity as status]
   (with-open [#^InputStream stream (.getContent entity)]
-    (io/slurp* stream)))
+    (slurp stream)))
 
 ;;; JSON handling.
 ;;; We prefer keywordizing.
 (defmethod entity-as :json [#^HttpEntity entity as status]
   (with-open [#^InputStream stream (.getContent entity)]
-    (clojure.contrib.json/read-json (io/reader stream) true)))
+    (json/read-json (io/reader stream) true)))
 
 (defmethod entity-as :json-string-keys [#^HttpEntity entity as status]
   (with-open [#^InputStream stream (.getContent entity)]
-    (clojure.contrib.json/read-json (io/reader stream) false)))
+    (json/read-json (io/reader stream) false)))
 
 
 ;;; To avoid overhead in shutting down a ClientConnectionManager,

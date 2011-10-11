@@ -3,7 +3,6 @@
   (:require [com.twinql.clojure.async-client :as async])
   (:require [com.twinql.clojure.async-libs :as async-libs])
   (:require [com.twinql.clojure.http :as http])
-  (:require [clojure.contrib.io :as io])
   (:use clojure.test)
   (:import
      (java.net URI)))
@@ -113,7 +112,7 @@
 
        ;; This post has no body, but it does have query params,
        ;; so query params go in the body.
-       (io/slurp* (.. req2 getEntity getContent))
+       (slurp (.. req2 getEntity getContent))
        "name=Edgar&age=89&weight=166&city=Boston"
 
        ;; When query params go in the body, Content-Type header
@@ -128,7 +127,7 @@
        "Spongebob"
 
        ;; Be sure body was set from :body option.
-       (io/slurp* (.. req3 getEntity getContent))
+       (slurp (.. req3 getEntity getContent))
        sample-body )))
 
 ;; These are some default options for the HTTP connections we want to set up.
