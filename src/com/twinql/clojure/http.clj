@@ -499,7 +499,7 @@ If only a query parameter map is provided, it is included in the body.")
           (when ~'query
             (.setEntity http-verb#
                         (new UrlEncodedFormEntity
-                             (seq (map->name-value-pairs ~'query))))))
+                             (seq (map->name-value-pairs ~'query)) "UTF-8"))))
         (handle-http
           ~'parameters
           (adding-headers!
