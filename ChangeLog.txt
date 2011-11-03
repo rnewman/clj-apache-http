@@ -1,2 +1,5 @@
-== version 1.0.17
+== version 1.0.18
+* moved back to verison 4.0-alpha2 of org.apache.httpcomponents/httpasyncclient - this makes 1.0.18 identical to 1.0.17
+
+== version 1.0.17 
 * moved from version 4.0-alpha2 to version 4.0-alpha3 of org.apache.httpcomponents/httpasyncclient 
