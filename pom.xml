@@ -3,13 +3,13 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>diamondap</groupId>
   <artifactId>clj-apache-https</artifactId>
-  <version>1.0.16</version>
+  <version>1.0.17</version>
   <name>clj-apache-https</name>
   <description>Clojure HTTP library using the Apache HttpClient. Based on clj-apache-http, but includes support for SSL client certificates and HttpAsyncClient.</description>
   <scm>
     <connection>scm:git:git://github.com/diamondap/clj-apache-http.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/diamondap/clj-apache-http.git</developerConnection>
-    <tag>ddb1618796443c2223ce42187cceb9a621082a64</tag>
+    <tag>e41c92fa41611e0ff0b9f57d6cd3edbbcfa3a526</tag>
     <url>https://github.com/diamondap/clj-apache-http</url>
   </scm>
   <build>
@@ -92,7 +92,7 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpasyncclient</artifactId>
-      <version>4.0-alpha2</version>
+      <version>4.0-alpha3</version>
     </dependency>
     <dependency>
       <groupId>commons-codec</groupId>

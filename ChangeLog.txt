@@ -1,0 +1,2 @@
+== version 1.0.17
+* moved from version 4.0-alpha2 to version 4.0-alpha3 of org.apache.httpcomponents/httpasyncclient 
