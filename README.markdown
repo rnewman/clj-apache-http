@@ -15,7 +15,7 @@ For real-world code using this library, see the `clj-mql` project:
 
 <https://github.com/rnewman/clj-mql/tree/master>
 
- 
+
 # Building with Ant #
 
 Invoke `ant`, optionally passing `-Dclojure.jar="..."` and `-Dclojure.contrib.jar="..."`.
@@ -90,7 +90,7 @@ parameters, as expected by most HTTP servers. For example:
     =>
     "foo=bar&baz=noo&baz=5&baz=true&top=%7B%3Ax+5%2C+%3Ay+7%7D"
 
-    
+
 # Examples #
 
     (:content (http/get (java.net.URI. "http://example.com") :as :string))
@@ -99,7 +99,7 @@ parameters, as expected by most HTTP servers. For example:
 
     (select-keys
       (http/get "http://clojure.org/api" :as :stream) [:code :reason :content])
-    => 
+    =>
     {:content #<EofSensorInputStream org.apache.http.conn.EofSensorInputStream@4ba57633>,
      :reason "OK",
      :code 200}
@@ -128,7 +128,7 @@ parameters, as expected by most HTTP servers. For example:
 
 
 # Keyword parameters #
- 
+
 You can use `:query`, `:headers`, `:parameters`, `:as`, and `:headers-as`.
 
 The first three are associative. `:as` can be:
@@ -167,7 +167,7 @@ You can pass a parameter map to the HTTP functions. This is used to set various
 options on the HTTP client.
 
 The keys are long-winded Java constants, but the capability is very useful
-(e.g., for proxying). See 
+(e.g., for proxying). See
 
 <http://hc.apache.org/httpcomponents-client-4.0.1/httpclient/apidocs/org/apache/http/client/params/AllClientPNames.html>
 

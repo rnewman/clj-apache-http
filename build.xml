@@ -3,16 +3,16 @@
   <!-- Override these with -Dclojure.jar=... in your Ant invocation. -->
   <property name="clojure.jar" location="/opt/clojure/clojure.jar"/>
   <property name="clojure.contrib.jar" location="/opt/clojure-contrib/clojure-contrib.jar"/>
-  
+
   <available property="hasclojure" file="${clojure.jar}"/>
-  
+
   <!-- Library. -->
   <property name="src" location="src"/>
   <property name="lib" location="lib"/>
   <property name="build" location="classes"/>
   <property name="jarfile" location="clj-apache-http.jar"/>
   <property name="deploy" location="deploy"/>
- 
+
   <target name="init">
     <tstamp/>
     <mkdir dir="${build}"/>
@@ -32,16 +32,16 @@
       <classpath>
         <path location="${src}"/>
         <path location="${build}"/>
-        
+
         <path location="${lib}/commons-logging-1.1.1.jar"/>
         <path location="${lib}/httpclient-4.0.1.jar"/>
         <path location="${lib}/httpcore-4.0.1.jar"/>
         <path location="${lib}/httpmime-4.0.1.jar"/>
-        
+
         <path location="${clojure.jar}"/>
         <path location="${clojure.contrib.jar}"/>
       </classpath>
-      
+
       <sysproperty key="clojure.compile.path" value="${build}"/>
       <arg value="com.twinql.clojure.http"/>
     </java>
@@ -56,7 +56,7 @@
       </manifest>
     </jar>
   </target>
-  
+
   <target name="deploy" description="Copy appropriate jar files to one place."
     depends="jar">
     <copy todir="${deploy}" verbose="true" file="${jarfile}"/>
