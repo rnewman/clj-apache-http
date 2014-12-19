@@ -4,7 +4,7 @@
   (:require
      [clojure.contrib.io :as io]
      [clojure.contrib.json :as json])
-  (:import 
+  (:import
     (java.lang Exception)
     (java.net URI)
     (java.io InputStream)
@@ -78,15 +78,15 @@
   (if (instance? clojure.lang.Named x)
     (name x)
     (str x)))
-    
+
 (defn- map->name-value-pairs
   "Take an associative structure and return a sequence of BasicNameValuePairs.
   Any associated value that is sequential will appear multiple times in the output, so that
-  
+
     {:foo [\"bar\" \"baz\"]}
-  
+
   will produce pairs that encode to
-  
+
     ?foo=bar&foo=baz"
   [q]
   (mapcat
@@ -168,10 +168,10 @@
 
 (defmethod headers-as :header-seq [#^HeaderIterator headers as]
   (iterator-seq headers))
-  
+
 (defmethod headers-as :seq [#^HeaderIterator headers as]
   (map header-pair (iterator-seq headers)))
-  
+
 (defmethod headers-as nil [#^HeaderIterator headers as]
   (headers-as headers :seq))
 
@@ -246,23 +246,23 @@
    ;; The HTTP params go away in 4.1.
    (SingleClientConnManager. (BasicHttpParams.) registry)))
 
-(defn #^BasicHttpParams connection-limits 
+(defn #^BasicHttpParams connection-limits
   "Return HTTP Parameters for the provided connection limit."
   [#^Integer max-total-connections]
   (doto (BasicHttpParams.)
     (.setParameter ConnManagerPNames/MAX_TOTAL_CONNECTIONS max-total-connections)))
-   
+
 (defn #^ClientConnectionManager thread-safe-connection-manager
   "Produce a new ThreadSafeClientConnManager with http and https, or
    the provided registry."
   ([]
    (thread-safe-connection-manager (scheme-registry true)))
-  
+
   ([#^SchemeRegistry registry]
    ;; The HTTP params go away in 4.1.
    ;; BasicHttpParams isn't thread-safe...!
    (thread-safe-connection-manager registry (BasicHttpParams.)))
-  
+
   ([#^SchemeRegistry registry #^HttpParams params]
    (ThreadSafeClientConnManager. params registry)))
 
@@ -335,12 +335,12 @@
                                      (if (= "https" (.getScheme u))
                                        443
                                        80))]
-                 
+
                  (when-not (.getAuthScheme auth-state)
                    (.setCredentials c-p (AuthScope. target-host target-port) c)
                    (.setAuthScheme auth-state (BasicScheme.))
                    (.setCredentials auth-state c)))))]
-        
+
         (.addRequestInterceptor client prx 0)))))
 
 
@@ -361,7 +361,7 @@
     filters
     #^ClientConnectionManager
     connection-manager]
-     
+
    (let [#^DefaultHttpClient http-client (if connection-manager
                                            (DefaultHttpClient.
                                              connection-manager
@@ -377,7 +377,7 @@
      (when parameters
        (doseq [[pname pval] parameters]
          (.setParameter params pname pval)))
-    
+
      (let [#^HttpResponse http-response
            ;; Used for manipulation of the request prior to execution.
            ;; Allows things like Basic Auth.
@@ -389,7 +389,7 @@
 
              ;; Otherwise, be simple.
              (.execute http-client http-verb))
-            
+
            #^StatusLine   status-line   (.getStatusLine http-response)
            #^HttpEntity   entity        (.getEntity http-response)
 
@@ -397,7 +397,7 @@
                      :reason (.getReasonPhrase status-line)
                      :content
                      (entity-as entity as (.getStatusCode status-line))
-                     
+
                      :entity entity
                      :client http-client
                      :response http-response
@@ -409,7 +409,7 @@
        ;; (.. http-client getConnectionManager closeExpiredConnections)
        (when-not connection-manager
          (.. http-client getConnectionManager shutdown))
-       
+
        response))))
 
 (defn- adding-headers! [#^AbstractHttpMessage verb headers]
@@ -424,7 +424,7 @@
     (let [#^URI u uri-parts]
       (if (and query-parameters
                (not (empty? query-parameters)))
-        (. URIUtils createURI 
+        (. URIUtils createURI
            (or (.getScheme u) "http")
            (.getHost u)
            (.getPort u)
@@ -434,7 +434,7 @@
              (encode-query query-parameters))
            (.getFragment u))
         u))
-    
+
     (associative? uri-parts)
     (let [{:keys [scheme host path port query fragment]} uri-parts]
       (. URIUtils createURI
@@ -446,7 +446,7 @@
            (encode-query query)
            (encode-query query-parameters))
          fragment))
-    
+
     (string? uri-parts)
     (recur (URI. uri-parts) query-parameters)))
 
@@ -470,7 +470,7 @@
          ~'cookie-store
          ~'filters
          ~'connection-manager))))
- 
+
 ;; For requests with bodies.
 (defmacro def-http-body-verb [verb class]
   `(defn ~verb
@@ -509,7 +509,7 @@ If only a query parameter map is provided, it is included in the body.")
           ~'cookie-store
           ~'filters
           ~'connection-manager)))))
-  
+
 (def-http-body-verb post HttpPost)
 (def-http-body-verb put HttpPut)
 (def-http-verb get HttpGet)
@@ -560,7 +560,7 @@ If only a query parameter map is provided, it is included in the body.")
        :credential-charset                    org.apache.http.auth.params.AuthPNames/CREDENTIAL_CHARSET ; String.
        :date-patterns                         org.apache.http.cookie.params.CookieSpecPNames/DATE_PATTERNS ; String.
        }]
-  
+
   (defn map->params
     "Put more pleasant names on the Apache constants."
     [m]
